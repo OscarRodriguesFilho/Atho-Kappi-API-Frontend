@@ -1,0 +1,201 @@
+/* ===========================
+   FAB (+) — ícone 100% centralizado
+   (SEM animação extra)
+=========================== */
+.fab-plus {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+
+  border: none;
+  outline: none;
+
+  background: #2f5f73;
+  color: #ffffff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
+  z-index: 2500;
+  cursor: pointer;
+
+  /* só transições básicas, sem bounce/shine */
+  transition: filter 0.12s ease, box-shadow 0.18s ease, transform 0.12s ease;
+}
+
+/* ✅ desenha o + com CSS (não depende da fonte) */
+.fab-plus__icon {
+  position: relative;
+  width: 24px;     /* tamanho do + */
+  height: 24px;
+  display: block;
+
+  /* esconde o "+" do texto */
+  font-size: 0;
+  line-height: 0;
+}
+
+.fab-plus__icon::before,
+.fab-plus__icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+
+  width: 22px;     /* comprimento da barrinha */
+  height: 4px;     /* espessura */
+  background: currentColor;
+
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+}
+
+/* barra vertical */
+.fab-plus__icon::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+/* hover simples */
+.fab-plus:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
+}
+
+/* active discreto (sem animação) */
+.fab-plus:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.fab-plus:focus,
+.fab-plus:focus-visible {
+  outline: none !important;
+}
+
+/* ===========================
+   Z-INDEX do modal
+=========================== */
+.modal { z-index: 3000 !important; }
+.modal-backdrop { z-index: 2990 !important; }
+
+/* ===========================
+   ✅ Modal largo (funcionando)
+=========================== */
+.modal .modal-dialog.cad-modal {
+  --bs-modal-width: 700px !important;
+  max-width: min(700px, 96vw) !important;
+  width: min(700px, 96vw) !important;
+}
+
+.modal .modal-dialog.cad-modal .modal-content {
+  width: 100% !important;
+}
+
+/* responsivo */
+@media (max-width: 700px) {
+  .modal .modal-dialog.cad-modal {
+    --bs-modal-width: 96vw !important;
+    max-width: 96vw !important;
+    width: 96vw !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+
+/* ===========================
+   Backdrop — sem "piscada"
+   (deixa só o fade do Bootstrap)
+=========================== */
+.cad-backdrop-anim {
+  animation: none !important;
+}
+
+.modal-backdrop.show {
+  opacity: 0.55 !important; /* ajuste aqui (0.45~0.65) */
+}
+
+/* ===========================
+   Botão "Cadastrar" — tema moderno
+   (casado com o teal #2f5f73)
+=========================== */
+.cad-modal .btn-primary {
+  background: #2f5f73 !important;
+  border-color: #2f5f73 !important;
+
+  box-shadow: 0 10px 22px rgba(47, 95, 115, 0.28);
+  font-weight: 700;
+  border-radius: 10px;
+
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 180ms ease;
+}
+
+.cad-modal .btn-primary:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(47, 95, 115, 0.34);
+}
+
+.cad-modal .btn-primary:active {
+  transform: translateY(0px) scale(0.99);
+  filter: brightness(0.98);
+  box-shadow: 0 8px 18px rgba(47, 95, 115, 0.26);
+}
+
+.cad-modal .btn-primary:focus,
+.cad-modal .btn-primary:focus-visible {
+  outline: none !important;
+  box-shadow:
+    0 0 0 4px rgba(47, 95, 115, 0.25),
+    0 10px 22px rgba(47, 95, 115, 0.28) !important;
+}
+
+/* ===========================
+   Utils visuais
+=========================== */
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}
+
+.cad-inline-status {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+}
+
+.cad-inline-status.ok {
+  background: #d1e7dd;
+  color: #0f5132;
+  border-color: #badbcc;
+}
+
+.cad-inline-status.err {
+  background: #f8d7da;
+  color: #842029;
+  border-color: #f5c2c7;
+}
+
+.cad-loading-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2f5f73;
+  animation: cadPulse 0.8s infinite ease-in-out;
+}
+
+@keyframes cadPulse {
+  0% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.6); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.3; }
+}

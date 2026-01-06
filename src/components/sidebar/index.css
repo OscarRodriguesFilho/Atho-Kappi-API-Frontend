@@ -1,0 +1,125 @@
+:root {
+  --kuara-header-h: 86px;
+
+  --dock-x: 14px;     /* distância da esquerda */
+  --dock-gap: 12px;   /* espaço entre itens */
+  --dock-size: 52px;  /* tamanho do ícone */
+}
+
+/* =========================
+   Dock flutuante
+========================= */
+.fdock {
+  position: fixed;
+  left: var(--dock-x);
+  top: calc(var(--kuara-header-h) + 16px);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--dock-gap);
+
+  z-index: 60;
+}
+
+/* =========================
+   Item (FECHADO) -> GRID
+========================= */
+.fdock-item {
+  width: var(--dock-size);
+  height: var(--dock-size);
+  border-radius: 16px;
+
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(55, 78, 95, 0.56);
+  backdrop-filter: blur(12px);
+
+  color: rgba(255, 255, 255, 0.92);
+
+  display: grid;
+  place-items: center;
+
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+
+  transition: width 0.16s ease, background 0.16s ease, transform 0.12s ease;
+}
+
+/* =========================
+   Item (ABERTO) -> FLEX
+========================= */
+.fdock-item:hover {
+  width: 220px;
+  background: rgba(55, 78, 95, 0.74);
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 12px;
+  gap: 10px;
+}
+
+.fdock-item:active {
+  transform: translateY(1px);
+}
+
+/* tile do ícone (quadrado da frente) */
+.fdock-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+
+  display: grid;
+  place-items: center;
+
+  background: rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+
+  flex: 0 0 auto;
+}
+
+/* label */
+.fdock-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+
+  display: none;
+}
+
+.fdock-item:hover .fdock-label {
+  display: inline-block;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fdock-item,
+  .fdock-label {
+    transition: none !important;
+  }
+}
+
+/* =========================
+   ✅ ACTIVE (SEM TRANSPARÊNCIA)
+   - trava a cor final (não mistura com nada)
+   - inverte os dois quadrados
+========================= */
+
+/* fora (trás) = escuro opaco */
+.fdock-item.is-active {
+  background: #7e8991;        /* escuro equivalente ao miolo atual */
+  backdrop-filter: none;       /* remove interferência do blur no ativo */
+}
+
+/* dentro (frente) = claro opaco */
+.fdock-item.is-active .fdock-ico {
+  background: #8f9ca5;         /* claro equivalente ao fundo atual */
+}

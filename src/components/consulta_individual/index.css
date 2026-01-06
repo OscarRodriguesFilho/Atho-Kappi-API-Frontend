@@ -1,0 +1,1477 @@
+/* src/components/consulta_individual/index.css */
+
+.ck-wrap {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e8eef7;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(30, 60, 90, 0.08);
+  overflow: hidden;
+}
+
+.ck-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef2f8;
+}
+
+.ck-title {
+  font-weight: 800;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.ck-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.ck-form {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 140px;
+  gap: 10px;
+  align-items: end;
+}
+
+.ck-field label {
+  display: block;
+  font-size: 12px;
+  color: #334155;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.ck-field input {
+  width: 100%;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid #dbe7fb;
+  padding: 0 10px;
+  outline: none;
+}
+
+.ck-field input:focus {
+  border-color: #3c78d8;
+  box-shadow: 0 0 0 3px rgba(60, 120, 216, 0.15);
+}
+
+.ck-btn {
+  height: 38px;
+  border: none;
+  border-radius: 10px;
+  background: #3c78d8;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ck-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.ck-error {
+  margin-top: 10px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.ck-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef2f8;
+  background: #f8fbff;
+  overflow-x: auto;
+}
+
+.ck-tab {
+  border: 1px solid #dbe7fb;
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.ck-tab:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ck-tab.is-active {
+  border-color: #3c78d8;
+  box-shadow: 0 0 0 3px rgba(60, 120, 216, 0.12);
+}
+
+.ck-tab__label {
+  font-size: 13px;
+}
+
+.ck-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+}
+
+.ck-dot.ok {
+  background: #bbf7d0;
+  border-color: #86efac;
+}
+
+.ck-body {
+  padding: 12px 12px 16px;
+}
+
+.ck-empty {
+  padding: 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px dashed #dbe7fb;
+  color: #475569;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.ck-empty.big {
+  padding: 18px;
+}
+
+.ck-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid #e8eef7;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ck-table thead th {
+  text-align: left;
+  background: #3c78d8;
+  color: white;
+  font-weight: 900;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.ck-table tbody td {
+  padding: 10px 12px;
+  font-size: 13px;
+  border-top: 1px solid #eef2f8;
+  vertical-align: top;
+}
+
+.ck-k {
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.ck-v {
+  color: #0f172a;
+}
+
+.ck-details summary {
+  cursor: pointer;
+  font-weight: 900;
+  color: #3c78d8;
+}
+
+.ck-details__body {
+  margin-top: 8px;
+}
+
+.ck-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ck-card {
+  border: 1px solid #e8eef7;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+
+.ck-card__title {
+  font-weight: 900;
+  margin-bottom: 8px;
+  color: #0f172a;
+}
+
+.ck-ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.ck-pre {
+  background: #0b1220;
+  color: #e2e8f0;
+  padding: 14px;
+  border-radius: 12px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* =========================
+   Sub-abas internas (KAPPI e CSV)
+========================= */
+
+.ck-kappi {
+  display: grid;
+  gap: 10px;
+}
+
+.ck-subtabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #eef2f8;
+  border-radius: 12px;
+  background: #fbfdff;
+  overflow-x: auto;
+}
+
+.ck-subtab {
+  border: 1px solid #dbe7fb;
+  background: #fff;
+  border-radius: 12px;
+  padding: 7px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 900;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.ck-subtab.is-active {
+  border-color: #3c78d8;
+  box-shadow: 0 0 0 3px rgba(60, 120, 216, 0.12);
+}
+
+.ck-subtab__label {
+  font-size: 13px;
+}
+
+.ck-subbody {
+  padding: 0;
+}
+
+.ck-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.ck-section {
+  border: 1px solid #eef2f8;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+
+.ck-section__title {
+  font-weight: 950;
+  color: #0f172a;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+/* “tabela excel-like” (processos/doações) */
+.ck-sheetTableWrap {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid #e8eef7;
+  border-radius: 12px;
+}
+
+.ck-sheetTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 980px;
+}
+
+.ck-sheetTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
+  background: #3c78d8;
+  color: #fff;
+  font-weight: 950;
+  padding: 10px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid #2f64bd;
+  white-space: nowrap;
+}
+
+.ck-sheetTable tbody td {
+  padding: 10px 12px;
+  font-size: 12px;
+  border-top: 1px solid #eef2f8;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.ck-sheetTable tbody tr:nth-child(even) td {
+  background: #f8fbff;
+}
+
+.ck-link {
+  color: #3c78d8;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.ck-link:hover {
+  text-decoration: underline;
+}
+
+/* pequenos pills nos cards de análise */
+.ck-mini {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ck-pill {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #e8eef7;
+  background: #fbfdff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.ck-wrap {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e8eef7;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(30, 60, 90, 0.08);
+  overflow: hidden;
+}
+
+.ck-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef2f8;
+}
+
+.ck-title {
+  font-weight: 800;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.ck-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.ck-form {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 10px;
+  align-items: end;
+}
+
+.ck-field label {
+  display: block;
+  font-size: 12px;
+  color: #334155;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.ck-field input {
+  width: 100%;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid #dbe7fb;
+  padding: 0 10px;
+  outline: none;
+}
+
+.ck-field input:focus {
+  border-color: #3c78d8;
+  box-shadow: 0 0 0 3px rgba(60, 120, 216, 0.15);
+}
+
+.ck-btn {
+  height: 38px;
+  border: none;
+  border-radius: 10px;
+  background: #3c78d8;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0 14px;
+}
+
+.ck-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.ck-btn.ck-btn--ghost {
+  background: #fff;
+  color: #3c78d8;
+  border: 1px solid #b7d2ff;
+}
+
+.ck-error {
+  margin-top: 10px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* ===== Tabs ===== */
+.ck-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef2f8;
+  background: #f8fbff;
+  overflow-x: auto;
+}
+
+.ck-tab {
+  border: 1px solid #dbe7fb;
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 900;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.ck-tab.is-active {
+  border-color: #3c78d8;
+  box-shadow: 0 0 0 3px rgba(60, 120, 216, 0.12);
+}
+
+.ck-tab__label {
+  font-size: 13px;
+}
+
+/* ✅ bolinha das abas */
+.ck-tabDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 2px solid #3c78d8;
+}
+
+.ck-tabDot.is-empty {
+  background: transparent; /* sem dados = vazia */
+}
+
+.ck-tabDot.is-full {
+  background: #3c78d8; /* com dados = preenchida */
+}
+
+.ck-body {
+  padding: 12px 12px 16px;
+}
+
+.ck-empty {
+  padding: 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px dashed #dbe7fb;
+  color: #475569;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.ck-empty.big {
+  padding: 18px;
+}
+
+/* ===== Sections / cards ===== */
+.ck-section {
+  margin-top: 10px;
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.ck-section__title {
+  font-weight: 950;
+  color: #0f172a;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.ck-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ck-card {
+  border: 1px solid #e8eef7;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+
+.ck-card__title {
+  font-weight: 900;
+  margin-bottom: 8px;
+  color: #0f172a;
+}
+
+/* Pills */
+.ck-mini {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ck-pill {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #e8eef7;
+  background: #fbfdff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* botão “Ver detalhes” */
+.ck-detailsBtn {
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: #3c78d8;
+  font-weight: 900;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+}
+
+.ck-detailsBtn:hover {
+  text-decoration: underline;
+}
+
+.ck-detailsBtn__icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbe7fb;
+  border-radius: 999px;
+  color: #3c78d8;
+  font-size: 12px;
+  background: #fbfdff;
+}
+
+.ck-actionsRow {
+  margin-top: 6px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* ===== dashboard layout ===== */
+.ck-dashboard {
+  display: grid;
+  gap: 12px;
+}
+
+.ck-grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .ck-grid2 {
+    grid-template-columns: 1fr;
+  }
+  .ck-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ck-span2 {
+  grid-column: 1 / -1;
+}
+
+/* KPIs */
+.ck-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ck-metrics--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .ck-metrics--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.ck-metric {
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: #fbfdff;
+}
+
+.ck-metric__k {
+  font-size: 12px;
+  color: #5b6b7f;
+  font-weight: 800;
+}
+
+.ck-metric__v {
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+/* topo com botões do dashboard */
+.ck-rowHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ck-exportBtns {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ===== Charts base ===== */
+.ck-chart {
+  margin-top: 8px;
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.ck-chart__title {
+  font-weight: 900;
+}
+
+.ck-chart__sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #5b6b7f;
+  font-weight: 700;
+}
+
+/* ===== área/linha ===== */
+.ck-areaWrap {
+  margin-top: 8px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.ck-areaSvg {
+  width: 100%;
+  height: auto;
+}
+
+.ck-areaGrid {
+  stroke: #cbd5e1;
+  stroke-dasharray: 4 4;
+  stroke-width: 1;
+}
+
+.ck-areaTick {
+  font-size: 12px;
+  fill: #64748b;
+  font-weight: 700;
+}
+
+.ck-areaX {
+  font-size: 12px;
+  fill: #64748b;
+  font-weight: 800;
+}
+
+.ck-areaFill {
+  fill: rgba(255, 165, 0, 0.35);
+}
+
+.ck-areaLine {
+  fill: none;
+  stroke: #f59e0b;
+  stroke-width: 3;
+}
+
+.ck-areaDot {
+  fill: #f59e0b;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.ck-projCut {
+  stroke: #94a3b8;
+  stroke-width: 2;
+  stroke-dasharray: 6 6;
+  opacity: 0.9;
+}
+
+/* ===== barras verticais agrupadas ===== */
+.ck-chart--vbars .ck-vbars {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+@media (max-width: 1100px) {
+  .ck-chart--vbars .ck-vbars {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.ck-vbarCol {
+  display: grid;
+  grid-template-rows: 170px auto;
+  gap: 8px;
+}
+
+.ck-vbarBars {
+  border: 1px solid #eef2f8;
+  background: #fbfdff;
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.ck-vbarStack {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  align-items: end;
+}
+
+.ck-vbar {
+  width: 100%;
+  border-radius: 10px 10px 4px 4px;
+  min-height: 2px;
+}
+
+.ck-vbar.is-red {
+  background: #d32f2f;
+}
+.ck-vbar.is-green {
+  background: #2e7d32;
+}
+
+.ck-vbarLabel {
+  font-weight: 900;
+  font-size: 12px;
+  color: #0f172a;
+  line-height: 1.15;
+  min-height: 28px;
+  display: flex;
+  align-items: flex-start;
+}
+
+/* legend */
+.ck-legend {
+  margin-top: 10px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 800;
+}
+
+.ck-legendItem {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ck-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid #dbe7fb;
+}
+
+.ck-dot.is-red {
+  background: #d32f2f;
+  border-color: #f0b4b4;
+}
+.ck-dot.is-green {
+  background: #2e7d32;
+  border-color: #b7e0b9;
+}
+
+/* ===== map + AI ===== */
+.ck-mapRow {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 12px;
+  align-items: stretch;
+}
+
+@media (max-width: 1100px) {
+  .ck-mapRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ck-map {
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+  overflow: hidden;
+  min-height: 320px;
+}
+
+.ck-map iframe {
+  width: 100%;
+  height: 320px;
+  border: 0;
+}
+
+.ck-aiBox {
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fbfdff;
+}
+
+.ck-aiTitle {
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.ck-aiSub {
+  font-size: 12px;
+  color: #5b6b7f;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.ck-aiText {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #0f172a;
+}
+
+/* ===== resumo IA ===== */
+.ck-aiSummary {
+  border: 1px solid #eef2f8;
+  background: #fbfdff;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.ck-aiSummaryTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.ck-aiBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #dbe7fb;
+  font-weight: 900;
+  font-size: 12px;
+  color: #3c78d8;
+  background: #fff;
+}
+
+.ck-aiLoan {
+  border: 1px solid #dbe7fb;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  min-width: 260px;
+}
+
+.ck-aiLoan__k {
+  font-size: 12px;
+  color: #5b6b7f;
+  font-weight: 900;
+}
+
+.ck-aiLoan__v {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 1000;
+  color: #0f172a;
+}
+
+.ck-aiSummaryText {
+  margin: 10px 0 0 0;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #0f172a;
+}
+
+/* ===== controls ===== */
+.ck-addRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.ck-addRow input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #dbe7fb;
+  border-radius: 10px;
+  outline: none;
+}
+
+.ck-addImovel {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+@media (max-width: 1100px) {
+  .ck-addImovel {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ck-addImovel input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #dbe7fb;
+  border-radius: 10px;
+  outline: none;
+}
+
+.ck-smallNote {
+  margin-top: 8px;
+  color: #5b6b7f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* mini table */
+.ck-miniTable {
+  margin-top: 10px;
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.ck-miniTable__head {
+  display: grid;
+  grid-template-columns: 1fr 160px 80px;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f6f9ff;
+  font-weight: 900;
+  font-size: 12.5px;
+  color: #0f172a;
+}
+
+.ck-miniTable__row {
+  display: grid;
+  grid-template-columns: 1fr 160px 80px;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid #eef2f8;
+  align-items: center;
+  background: #fff;
+}
+
+.ck-miniTable__head--imovel,
+.ck-miniRowBtn--imovel {
+  grid-template-columns: 140px 1fr 160px;
+}
+
+.ck-miniRowBtn {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  cursor: pointer;
+}
+
+.ck-miniRowBtn.is-active {
+  background: #eef5ff;
+}
+
+.ck-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ck-linkBtn {
+  border: 0;
+  background: transparent;
+  color: #3c78d8;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+/* ===== sheet table (processos) ===== */
+.ck-sheetTableWrap {
+  overflow: auto;
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+}
+
+.ck-sheetTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1100px;
+}
+
+.ck-sheetTable th,
+.ck-sheetTable td {
+  border-bottom: 1px solid #eef2f8;
+  padding: 10px 10px;
+  vertical-align: top;
+  font-size: 13px;
+}
+
+.ck-sheetTable th {
+  position: sticky;
+  top: 0;
+  background: #f6f9ff;
+  z-index: 1;
+  text-align: left;
+  font-weight: 900;
+}
+
+.ck-link {
+  color: #3c78d8;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.ck-link:hover {
+  text-decoration: underline;
+}
+
+/* =========================
+   Drawer (painel direito)
+========================= */
+.ck-drawerRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+}
+
+.ck-drawerOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.ck-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(720px, 122vw);
+  background: #fff;
+  border-left: 1px solid #e8eef7;
+  box-shadow: -8px 0 24px rgba(30, 60, 90, 0.18);
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.ck-drawerHead {
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef2f8;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ck-drawerTitle {
+  font-weight: 1000;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.ck-drawerSub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #5b6b7f;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ck-drawerClose {
+  border: 1px solid #dbe7fb;
+  background: #fbfdff;
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.ck-drawerBody {
+  padding: 12px 14px;
+  overflow: auto;
+}
+
+/* ===== table (KeyValueTable) ===== */
+.ck-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.ck-table th,
+.ck-table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid #eef2f8;
+  vertical-align: top;
+  font-size: 13px;
+}
+
+.ck-table th {
+  background: #f6f9ff;
+  font-weight: 900;
+  text-align: left;
+}
+
+.ck-k {
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.ck-v {
+  color: #0f172a;
+}
+
+.ck-inlineObj {
+  border: 1px solid #eef2f8;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fbfdff;
+}
+/* =========================
+   Processos: barra de filtros bonita
+   ✅ "Exibindo" vai dentro do ck-filters
+========================= */
+
+.ck-filters {
+  margin-top: 10px;
+  margin-bottom: 12px;
+
+  display: grid;
+  /* ✅ diminuí um pouco o campo do número e deixei espaço pro "Exibindo" */
+  grid-template-columns: 1.25fr 1fr 1.2fr 0.9fr auto auto;
+  gap: 12px;
+  align-items: end;
+
+  padding: 12px;
+  border: 1px solid #e6eaf2;
+  background: #fbfcff;
+  border-radius: 12px;
+}
+
+@media (max-width: 1100px) {
+  .ck-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .ck-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ck-filters .ck-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2a44;
+  margin-bottom: 6px;
+}
+
+.ck-inputWrap {
+  position: relative;
+}
+
+.ck-filters input,
+.ck-filters select {
+  width: 100%;
+  height: 40px;
+
+  border-radius: 10px;
+  border: 1px solid #d8e0ef;
+  background: #fff;
+
+  padding: 0 12px;
+  font-size: 14px;
+  color: #0f172a;
+
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ck-filters select {
+  padding-right: 34px; /* espaço pro caret */
+  appearance: none;
+}
+
+/* caret bonitinho do select */
+.ck-filters .ck-inputWrap::after {
+  content: "▾";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.ck-filters input:focus,
+.ck-filters select:focus {
+  border-color: #3c78d8;
+  box-shadow: 0 0 0 3px rgba(60, 120, 216, 0.15);
+}
+
+/* botão "Limpar" mais elegante */
+.ck-btn.ck-btn--ghost {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+
+  background: #ffffff;
+  border: 1px solid #d8e0ef;
+  color: #1f2a44;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.ck-btn.ck-btn--ghost:hover {
+  background: #f3f6ff;
+  border-color: #c9d6f3;
+}
+
+.ck-btn.ck-btn--ghost:active {
+  transform: translateY(1px);
+}
+
+/* ✅ pill do contador dentro do ck-filters (ao lado do limpar) */
+.ck-countPill {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 0 12px;
+  border-radius: 999px;
+
+  background: #ffffff;
+  border: 1px solid #d8e0ef;
+  color: #1f2a44;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+/* ✅ deixa a coluna Campo menor no drawer */
+.ck-table .ck-colCampo {
+  width: 140px;     /* ajuste: 140~180 fica bom */
+  max-width: 140px;
+  white-space: nowrap;
+}
+/* ✅ SUBSTITUA o bloco do modal no seu src/components/consulta_individual/index.css
+   (ou cole no final, mas garantindo que sobrescreva o anterior) */
+
+.ck-modalRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: grid;
+  place-items: center; /* ✅ centraliza */
+}
+
+.ck-modalOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.ck-modal {
+  position: relative; /* ✅ não é mais absolute no canto */
+  width: min(980px, calc(100vw - 36px));
+  max-height: calc(100vh - 60px);
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #e8eef7;
+  border-radius: 18px;
+  box-shadow: 0 18px 60px rgba(30, 60, 90, 0.22);
+}
+
+.ck-modalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef2f8;
+}
+
+.ck-modalTitle {
+  font-weight: 900;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.ck-modalClose {
+  border: 1px solid #dbe7f6;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.ck-modalBody {
+  padding: 12px;
+}
+
+/* Botão "+" */
+.ck-btn--plus {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-color: #cfe0fb;
+  background: #f6f9ff;
+}
+/* ====== Multi Tabs (Painel + guias) ====== */
+.ck-mtabs{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:10px 14px;
+  border-bottom:1px solid #eef2f8;
+  background:#fff;
+}
+
+.ck-mtabsLabel{
+  font-weight:700;
+  color:#0f172a;
+}
+
+.ck-mtabsList{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  overflow:auto;
+  padding-bottom:2px;
+}
+
+.ck-mtab{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  padding:8px 10px;
+  border-bottom:2px solid transparent;
+  color:#0f172a;
+  opacity:.85;
+}
+
+.ck-mtab.is-active{
+  border-bottom-color:#ff2d83; /* rosa igual ao print */
+  opacity:1;
+}
+
+.ck-mtabText{
+  font-weight:600;
+  white-space:nowrap;
+}
+
+.ck-mtabClose{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  opacity:.7;
+}
+
+.ck-mtabClose:hover{
+  background:#f1f5f9;
+  opacity:1;
+}
