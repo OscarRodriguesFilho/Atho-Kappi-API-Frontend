@@ -67,10 +67,46 @@ export default function NovaConsulta({ backendBase = "http://localhost:5502", on
   }
 
   function addLog(line) {
-    setLog((prev) => [{ t: new Date().toISOString(), line }, ...prev].slice(0, 40));
+    setLog((prev) => [{ t: new Date().toISOString(), line }, ...prev].slice(0, 80));
   }
 
-  // ✅ Por enquanto: só UI + "simulação" (sem mexer no backend)
+  async function postBulkForType({ docDigits, consultType }) {
+    const url = `${backendBase}/api/kappi_da_kuara/${encodeURIComponent(consultType)}/bulk_consult_save`;
+
+    const r = await fetch(url, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        documents: [docDigits],
+      }),
+    });
+
+    let j = null;
+    try {
+      j = await r.json();
+    } catch {
+      // resposta não-json
+    }
+
+    if (!r.ok || !j?.ok) {
+      const msg =
+        j?.error ||
+        j?.erro ||
+        (typeof j === "string" ? j : null) ||
+        `HTTP ${r.status} ao consultar ${consultType}`;
+      const e = new Error(msg);
+      e.status = r.status;
+      e.payload = j;
+      throw e;
+    }
+
+    return j;
+  }
+
+  // ✅ Agora: roda em PARALELO (todas as consultas ao mesmo tempo)
   async function executar() {
     const d = docDigits;
     if (!d) {
@@ -86,22 +122,58 @@ export default function NovaConsulta({ backendBase = "http://localhost:5502", on
     setLoading(true);
     setLog([]);
 
+    const types = Array.from(selectedTypes);
+
     try {
-      // ✅ Hoje: só demonstração de fluxo (sem chamar nada “profundo” ainda).
-      // ✅ Porém: se você quiser, pode já chamar os endpoints bulk_consult_save (um por tipo)
-      // no futuro. Por enquanto, só simula.
       addLog(`Documento: ${d}`);
       addLog(`Profundidade selecionada: Nível ${depth}`);
-      addLog(`Pesquisas: ${Array.from(selectedTypes).join(", ")}`);
-      addLog("✅ (Demo) Painel pronto: no futuro isso vai alimentar a query/orquestrador.");
+      addLog(`Pesquisas: ${types.join(", ")}`);
+      addLog("Disparando consultas em paralelo...");
 
-      // Pequena pausa para sensação de execução (UI)
-      await new Promise((r) => setTimeout(r, 450));
+      // dispara tudo ao mesmo tempo
+      const tasks = types.map((t) => {
+        addLog(`▶ (start) ${t}`);
+        const startedAt = Date.now();
 
-      // entrega pro pai preencher o doc e recarregar a tela agregada
-      if (onDone) onDone({ docDigits: d, depth, types: Array.from(selectedTypes) });
+        return postBulkForType({ docDigits: d, consultType: t })
+          .then((out) => {
+            const ms = Date.now() - startedAt;
+            const inserted = out?.inserted ?? 0;
+            const updated = out?.updated ?? 0;
+            const returned = out?.returned_items ?? out?.returnedItems ?? out?.returned ?? null;
+
+            addLog(
+              `✅ (done) ${t} • ${Math.round(ms / 1000)}s • inserted=${inserted} • updated=${updated}${
+                returned != null ? ` • returned=${returned}` : ""
+              }`
+            );
+
+            return { type: t, ok: true, out };
+          })
+          .catch((e) => {
+            const ms = Date.now() - startedAt;
+            const msg = e?.message || `Falha em ${t}`;
+            addLog(`❌ (fail) ${t} • ${Math.round(ms / 1000)}s • ${msg}`);
+            return { type: t, ok: false, error: msg };
+          });
+      });
+
+      const results = await Promise.all(tasks);
+
+      const okCount = results.filter((r) => r.ok).length;
+      const failCount = results.length - okCount;
+
+      if (okCount === 0) {
+        setError("Todas as consultas falharam. Veja o log.");
+        return;
+      }
+
+      addLog(`Finalizado: ${okCount} ok, ${failCount} falharam.`);
+      addLog("Abrindo painel agregado...");
+
+      if (onDone) onDone({ docDigits: d, depth, types, results });
     } catch (e) {
-      setError("Falha ao executar. (Por enquanto é só UI mesmo.)");
+      setError(e?.message || "Falha ao executar.");
     } finally {
       setLoading(false);
     }
@@ -141,11 +213,11 @@ export default function NovaConsulta({ backendBase = "http://localhost:5502", on
                   executar();
                 }
               }}
+              disabled={loading}
             />
 
             <div className="nc-hint">
-              Dica: pode colar com pontos/traços. Eu salvo somente os dígitos:{" "}
-              <b>{docDigits || "—"}</b>
+              Dica: pode colar com pontos/traços. Eu salvo somente os dígitos: <b>{docDigits || "—"}</b>
             </div>
           </div>
 
@@ -161,6 +233,7 @@ export default function NovaConsulta({ backendBase = "http://localhost:5502", on
                     key={t.key}
                     className={`nc-chip ${active ? "is-on" : ""}`}
                     onClick={() => toggleType(t.key)}
+                    disabled={loading}
                   >
                     <span className={`nc-chipDot ${active ? "is-on" : ""}`} />
                     {t.label}
@@ -191,6 +264,7 @@ export default function NovaConsulta({ backendBase = "http://localhost:5502", on
                     key={opt.key}
                     className={`nc-depthCard ${active ? "is-active" : ""}`}
                     onClick={() => setDepth(opt.key)}
+                    disabled={loading}
                   >
                     <div className={`nc-radio ${active ? "is-active" : ""}`} />
                     <div className="nc-depthMain">
@@ -208,7 +282,6 @@ export default function NovaConsulta({ backendBase = "http://localhost:5502", on
               })}
             </div>
 
-            {/* Preview do que isso significa */}
             <div className="nc-preview">
               <div className="nc-previewTitle">
                 <CheckCircle2 size={16} />
@@ -221,11 +294,10 @@ export default function NovaConsulta({ backendBase = "http://localhost:5502", on
                 <b>Profundidade:</b> {selectedDepth?.badge} — {selectedDepth?.title}
               </div>
               <div className="nc-previewLine">
-                <b>Pesquisas:</b>{" "}
-                {selectedTypes.size ? Array.from(selectedTypes).join(", ") : "—"}
+                <b>Pesquisas:</b> {selectedTypes.size ? Array.from(selectedTypes).join(", ") : "—"}
               </div>
               <div className="nc-previewHint">
-                (Ainda não roda “de verdade”. Na próxima etapa a gente pluga isso em uma query/orquestrador.)
+                (Profundidade ainda não expande “rede”. Por enquanto ela é um parâmetro pra etapa do orquestrador.)
               </div>
             </div>
           </div>

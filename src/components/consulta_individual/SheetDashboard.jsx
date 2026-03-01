@@ -1,5 +1,5 @@
 // src/components/consulta_individual/SheetDashboard.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 
 /* =========================
    Utils
@@ -39,10 +39,7 @@ function parseMoneyToNumber(v) {
   const onlySymbols = s0.replace(/[0-9]/g, "").trim();
   if (onlySymbols === "R$" || onlySymbols === "R$-" || onlySymbols === "-" || onlySymbols === "—") return 0;
 
-  let s = s0
-    .replace(/\s/g, "")
-    .replace(/R\$/gi, "")
-    .replace(/[^\d.,-]/g, "");
+  let s = s0.replace(/\s/g, "").replace(/R\$/gi, "").replace(/[^\d.,-]/g, "");
 
   if (!s.includes(",") && !s.includes(".")) {
     const n = Number(s);
@@ -78,6 +75,218 @@ function safeStr(v) {
 
 function firstObj(arr) {
   return Array.isArray(arr) && arr.length ? arr[0] : null;
+}
+
+
+/* =========================
+   ✅ Movimentações (case_movements -> últimos 6/12/18 meses)
+   REGRA:
+   - Para STRING: a primeira data é sempre a última movimentação (mais recente).
+   - Para ARRAY/OBJ: pega a MAIOR data encontrada (mais recente), pois a ordem pode variar.
+   - SEM filtros de tramitação/status/etc.
+   - Dedup por process_number (ou fallback) para não contar processo duplicado.
+========================= */
+
+function parseDateLooseAny(v) {
+  if (v == null) return null;
+
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+
+  if (typeof v === "number" && isFinite(v)) {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  const s = String(v).trim();
+  if (!s) return null;
+
+  const isoTry = new Date(s);
+  if (!isNaN(isoTry.getTime())) return isoTry;
+
+  let m = s.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
+  if (m) {
+    const dd = Number(m[1]);
+    const mm = Number(m[2]);
+    const yyyy = Number(m[3]);
+    const d = new Date(yyyy, mm - 1, dd);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  m = s.match(/\b(\d{2})-(\d{2})-(\d{4})\b/);
+  if (m) {
+    const dd = Number(m[1]);
+    const mm = Number(m[2]);
+    const yyyy = Number(m[3]);
+    const d = new Date(yyyy, mm - 1, dd);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  m = s.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (m) {
+    const yyyy = Number(m[1]);
+    const mm = Number(m[2]);
+    const dd = Number(m[3]);
+    const d = new Date(yyyy, mm - 1, dd);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  return null;
+}
+
+function addMonths(date, months) {
+  const d = new Date(date.getTime());
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
+
+function getProcId(c, idx) {
+  return (
+    String(c?.process_number || "").trim() ||
+    String(c?.process_url || "").trim() ||
+    String(c?.id || "").trim() ||
+    String(c?.case_id || "").trim() ||
+    `__idx__${idx}`
+  );
+}
+
+/**
+ * ✅ Retorna a data da última movimentação (mais recente)
+ * - string: primeira data do texto
+ * - array/obj: maior data encontrada
+ */
+function getLastMovementDateFromCaseMovements(caseMovements) {
+  if (!caseMovements) return null;
+
+  // ARRAY: pega a MAIOR data encontrada (mais recente)
+  if (Array.isArray(caseMovements)) {
+    let best = null;
+
+    for (const x of caseMovements) {
+      if (!x) continue;
+
+      const ds =
+        x.date ??
+        x.data ??
+        x.dt ??
+        x.movement_date ??
+        x.movementDate ??
+        x.created_at ??
+        x.createdAt ??
+        x.updated_at ??
+        x.updatedAt ??
+        x.timestamp ??
+        null;
+
+      const tx =
+        x.text ??
+        x.descricao ??
+        x.description ??
+        x.movement ??
+        x.movimento ??
+        x.nome ??
+        x.title ??
+        x.event ??
+        "";
+
+      const d = parseDateLooseAny(ds) || parseDateLooseAny(tx);
+      if (d && (!best || d > best)) best = d;
+    }
+
+    return best;
+  }
+
+  // OBJ: tenta achar arrays dentro; senão serializa
+  if (typeof caseMovements === "object") {
+    const candidates =
+      caseMovements.movements ||
+      caseMovements.movement ||
+      caseMovements.items ||
+      caseMovements.results ||
+      caseMovements.data ||
+      null;
+
+    if (Array.isArray(candidates)) return getLastMovementDateFromCaseMovements(candidates);
+
+    try {
+      return getLastMovementDateFromCaseMovements(JSON.stringify(caseMovements));
+    } catch {
+      return null;
+    }
+  }
+
+  // STRING: pega a PRIMEIRA data do texto (sua regra do print)
+  const s = String(caseMovements).trim();
+  if (!s) return null;
+
+  const m = s.match(/\b(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4})\b/);
+  if (!m) return null;
+
+  return parseDateLooseAny(m[1]);
+}
+
+/**
+ * ✅ Conta processos por faixa (6/12/18 meses)
+ * - SEM filtros
+ * - COM dedup por procId
+ */
+function buildInTramitacaoCounts(cases) {
+  const now = new Date();
+  const cut6 = addMonths(now, -6);
+  const cut12 = addMonths(now, -12);
+  const cut18 = addMonths(now, -18);
+
+  const seen6 = new Set();
+  const seen12 = new Set();
+  const seen18 = new Set();
+
+  for (let idx = 0; idx < (cases || []).length; idx++) {
+    const c = cases[idx];
+    const procId = getProcId(c, idx);
+
+    const d = getLastMovementDateFromCaseMovements(c?.case_movements);
+    if (!d) continue;
+
+    if (d >= cut18) seen18.add(procId);
+    if (d >= cut12) seen12.add(procId);
+    if (d >= cut6) seen6.add(procId);
+  }
+
+  return { last6: seen6.size, last12: seen12.size, last18: seen18.size };
+}
+
+/**
+ * 🔎 (Opcional) Debug rápido:
+ * Rode isso no lugar que você tem acesso a "cases" pra entender o 12.
+ * Exemplo: console.table(debugLastMovements(cases).filter(x => x.in6));
+ */
+function debugLastMovements(cases) {
+  const now = new Date();
+  const cut6 = addMonths(now, -6);
+  const cut12 = addMonths(now, -12);
+  const cut18 = addMonths(now, -18);
+
+  const out = [];
+  const seen = new Set();
+
+  for (let idx = 0; idx < (cases || []).length; idx++) {
+    const c = cases[idx];
+    const procId = getProcId(c, idx);
+    if (seen.has(procId)) continue; // dedup no debug também
+    seen.add(procId);
+
+    const d = getLastMovementDateFromCaseMovements(c?.case_movements);
+
+    out.push({
+      procId,
+      process_number: String(c?.process_number || ""),
+      lastMovement: d ? d.toISOString().slice(0, 10) : null,
+      in6: !!(d && d >= cut6),
+      in12: !!(d && d >= cut12),
+      in18: !!(d && d >= cut18),
+    });
+  }
+
+  return out;
 }
 
 /* =========================
@@ -187,7 +396,6 @@ function AreaLineChart({ title, items }) {
 
 /* =========================
    Gráfico: área/linha (dinheiro)
-   - padding maior pra não cortar R$
 ========================= */
 function MoneyAreaLineChart({ title, items }) {
   const w = 700;
@@ -278,10 +486,100 @@ function MoneyAreaLineChart({ title, items }) {
 }
 
 /* =========================
-   Barras agrupadas (classe processual)
+   ✅ BARRAS ÚNICAS (ATIVO x PASSIVO) COM SIGLAS NO EIXO X
 ========================= */
-function VerticalGroupedBars({ title, subtitle, items }) {
-  const max = Math.max(1, ...items.flatMap((it) => [Number(it.passive || 0), Number(it.active || 0)]));
+function stripAccents(s) {
+  return (s || "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function buildClassAbbreviation(fullLabel) {
+  const raw = stripAccents(fullLabel).toUpperCase().replace(/[^A-Z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  if (!raw) return "CLS";
+
+  const words = raw.split(" ").filter(Boolean);
+
+  const stop = new Set(["DE", "DO", "DA", "DOS", "DAS", "E", "EM", "NA", "NO", "NAS", "NOS", "A", "O", "AS", "OS", "POR"]);
+  const filtered = words.filter((w) => !stop.has(w));
+
+  for (const w of filtered) {
+    if (w.length >= 2 && w.length <= 5 && /^[A-Z0-9]+$/.test(w)) {
+      if (w.length <= 4) return w;
+    }
+  }
+
+  const initials = (filtered.length ? filtered : words).map((w) => w[0]).join("");
+  if (initials.length >= 2) return initials.slice(0, 4);
+
+  return (filtered[0] || words[0] || "CLS").slice(0, 4);
+}
+
+function buildUniqueAbbrevMap(items) {
+  const used = new Map();
+  const rows = [];
+
+  for (const it of items || []) {
+    const full = String(it.label || "").trim() || "SEM CLASSE";
+    let abbr = buildClassAbbreviation(full);
+
+    const key = abbr;
+    const n = used.get(key) || 0;
+    used.set(key, n + 1);
+
+    if (n > 0) {
+      const suffix = String(n + 1);
+      abbr = (abbr.slice(0, Math.max(1, 4 - suffix.length)) + suffix).slice(0, 4);
+    }
+
+    rows.push({
+      ...it,
+      _fullLabel: full,
+      _abbr: abbr,
+    });
+  }
+
+  return rows;
+}
+
+function AbbrevGroupedBars({ title, subtitle, items }) {
+  const rows = useMemo(() => buildUniqueAbbrevMap(items || []), [items]);
+
+  const w = 760;
+  const h = 300;
+  const padL = 70;
+  const padR = 18;
+  const padT = 18;
+  const padB = 64;
+
+  const vals = rows.flatMap((r) => [Number(r.passive || 0), Number(r.active || 0)]);
+  const maxRaw = Math.max(1, ...vals.filter((v) => isFinite(v)));
+  const max = maxRaw;
+
+  const iw = w - padL - padR;
+  const ih = h - padT - padB;
+
+  const n = rows.length || 1;
+  const groupW = iw / n;
+
+  const barGap = Math.max(2, Math.min(10, groupW * 0.12));
+  const barW = Math.max(6, Math.min(18, (groupW - barGap) / 2));
+
+  const xForGroup = (i) => padL + groupW * i + groupW / 2;
+  const yFor = (v) => padT + ih - (ih * Math.max(0, v)) / max;
+
+  const ticks = (() => {
+    const tN = 5;
+    const step = max / tN;
+    const out = [];
+    for (let i = 0; i <= tN; i++) out.push(i * step);
+    return out;
+  })();
+
+  // ✅ Altura-alvo do “bloco gráfico + coluna da legenda”
+  // (gráfico SVG + legenda "Passivo/Ativo" + padding)
+  const panelH = h + 14 /* respiro */ + 44 /* legenda Passivo/Ativo */ + 20 /* padding/margens */;
 
   return (
     <div className="ck-chart ck-chart--vbars">
@@ -290,53 +588,207 @@ function VerticalGroupedBars({ title, subtitle, items }) {
         {subtitle ? <div className="ck-chart__sub">{subtitle}</div> : null}
       </div>
 
-      <div className="ck-vbars">
-        {items.map((it, idx) => {
-          const p = Number(it.passive || 0);
-          const a = Number(it.active || 0);
-          const pH = Math.max(0, Math.min(100, (p / max) * 100));
-          const aH = Math.max(0, Math.min(100, (a / max) * 100));
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) 360px",
+          gap: 16,
+          marginTop: 10,
+          alignItems: "stretch",
+        }}
+      >
+        {/* =========================
+            COLUNA ESQUERDA: GRÁFICO
+        ========================= */}
+        <div
+          className="ck-areaWrap"
+          style={{
+            height: panelH,
+            padding: 10,
+            borderRadius: 14,
+            border: "1px solid rgba(0,0,0,0.08)",
+            background: "#fff",
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
+          }}
+        >
+          {/* ✅ SVG ocupa “tudo que sobrar” */}
+          <div style={{ flex: "1 1 auto", minHeight: 0 }}>
+            <svg
+              viewBox={`0 0 ${w} ${h}`}
+              className="ck-areaSvg"
+              role="img"
+              aria-label={title}
+              style={{ width: "100%", height: "100%", display: "block" }}
+            >
+              {ticks.map((t, idx) => {
+                const y = yFor(t);
+                return (
+                  <g key={idx}>
+                    <line x1={padL} y1={y} x2={w - padR} y2={y} className="ck-areaGrid" />
+                    <text x={padL - 12} y={y + 4} textAnchor="end" className="ck-areaTick">
+                      {formatBRLShort(t)}
+                    </text>
+                  </g>
+                );
+              })}
 
-          const fullLabel = it.label || "";
+              {rows.map((r, i) => {
+                const p = Number(r.passive || 0);
+                const a = Number(r.active || 0);
 
-          return (
-            <div className="ck-vbarCol" key={idx}>
-              <div className="ck-vbarBars">
-                <div className="ck-vbarStack">
-                  <div className="ck-vbar is-red" style={{ height: `${pH}%` }} title={formatBRL(p)} />
-                  <div className="ck-vbar is-green" style={{ height: `${aH}%` }} title={formatBRL(a)} />
+                const gx = xForGroup(i);
+
+                const pX = gx - barW - barGap / 2;
+                const aX = gx + barGap / 2;
+
+                const pY = yFor(p);
+                const aY = yFor(a);
+
+                const baseY = padT + ih;
+
+                const pH = Math.max(0, baseY - pY);
+                const aH = Math.max(0, baseY - aY);
+
+                return (
+                  <g key={r._abbr + i}>
+                    <rect x={pX} y={pY} width={barW} height={pH} rx="5" ry="5" fill="#d11a2a" opacity="0.92">
+                      <title>{`${r._fullLabel}\nPassivo: ${formatBRL(p)}\nAtivo: ${formatBRL(a)}`}</title>
+                    </rect>
+
+                    <rect x={aX} y={aY} width={barW} height={aH} rx="5" ry="5" fill="#1bbf6b" opacity="0.92">
+                      <title>{`${r._fullLabel}\nPassivo: ${formatBRL(p)}\nAtivo: ${formatBRL(a)}`}</title>
+                    </rect>
+
+                    <text x={gx} y={h - 22} textAnchor="middle" className="ck-areaX" style={{ fontWeight: 900 }}>
+                      {r._abbr}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+
+          {/* legenda passivo/ativo fixa embaixo */}
+          <div className="ck-legend" style={{ marginTop: 10, flex: "0 0 auto" }}>
+            <span className="ck-legendItem">
+              <span className="ck-dot is-red" /> Passivo (deve)
+            </span>
+            <span className="ck-legendItem">
+              <span className="ck-dot is-green" /> Ativo (a receber)
+            </span>
+          </div>
+        </div>
+
+        {/* =========================
+            COLUNA DIREITA: LEGENDA (COM SCROLL)
+        ========================= */}
+        <div
+          style={{
+            height: panelH,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          {/* ✅ Cabeçalho fixo */}
+          <div style={{ fontWeight: 900, fontSize: 12, opacity: 0.8, paddingLeft: 2, flex: "0 0 auto" }}>
+            Legenda de siglas
+          </div>
+
+          {/* ✅ Lista com rolagem */}
+          <div
+            style={{
+              flex: "1 1 auto",
+              minHeight: 0,
+              overflowY: "auto",
+              paddingRight: 6, // espaço p/ scrollbar não colar
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            {rows.map((r) => (
+              <div
+                key={r._abbr + r._fullLabel}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "96px 1fr",
+                  gap: 10,
+                  alignItems: "center",
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  background: "#fff",
+                }}
+                title={r._fullLabel}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    fontWeight: 1000,
+                    letterSpacing: 0.5,
+                    whiteSpace: "nowrap",
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 999,
+                      background: "rgba(60,120,216,0.95)",
+                      flex: "0 0 auto",
+                    }}
+                  />
+                  <span>{r._abbr}</span>
+                </div>
+
+                <div
+                  style={{
+                    fontWeight: 900,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    minWidth: 0,
+                  }}
+                >
+                  {r._fullLabel}
                 </div>
               </div>
-
-              <div className="ck-vbarLabel" title={fullLabel}>
-                {fullLabel}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="ck-legend">
-        <span className="ck-legendItem">
-          <span className="ck-dot is-red" /> Passivo (deve)
-        </span>
-        <span className="ck-legendItem">
-          <span className="ck-dot is-green" /> Ativo (a receber)
-        </span>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-/* =========================
-   ✅ Pizza: Ativo / Passivo / Outros
-========================= */
-function PieProcessTypes({ title, active = 0, passive = 0, other = 0 }) {
-  const total = Math.max(0, Number(active) + Number(passive) + Number(other));
 
-  const a = Math.max(0, Number(active) || 0);
-  const p = Math.max(0, Number(passive) || 0);
-  const o = Math.max(0, Number(other) || 0);
+/* =========================
+   ✅ Pizza por RAMO/JURISDIÇÃO (somente PASSIVO)
+========================= */
+function stableHashNumber(str) {
+  const s = (str || "").toString();
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
+function colorForLabel(label) {
+  const h = stableHashNumber(label) % 360;
+  return `hsl(${h} 72% 48%)`;
+}
+
+function PiePassiveJurisdictions({ title, items }) {
+  const total = items && items.length ? items.reduce((s, x) => s + Number(x.value || 0), 0) : 0;
 
   const w = 240;
   const h = 240;
@@ -354,39 +806,26 @@ function PieProcessTypes({ title, active = 0, passive = 0, other = 0 }) {
     return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
   }
 
-  const parts = total
-    ? [
-        { key: "passive", label: "Passivo", value: p, color: "#d11a2a" },
-        { key: "active", label: "Ativo", value: a, color: "#1bbf6b" },
-        { key: "other", label: "Outros", value: o, color: "#3C78D8" },
-      ]
-    : [
-        { key: "passive", label: "Passivo", value: 0, color: "#d11a2a" },
-        { key: "active", label: "Ativo", value: 0, color: "#1bbf6b" },
-        { key: "other", label: "Outros", value: 0, color: "#3C78D8" },
-      ];
-
   let angle = -90;
 
   return (
     <div className="ck-chart" style={{ padding: 14 }}>
       <div className="ck-chart__head">
         <div className="ck-chart__title">{title}</div>
-        <div className="ck-chart__sub">Distribuição por tipo (quantidade)</div>
+        <div className="ck-chart__sub">Distribuição de processos passivos por Ramo / Jurisdição (quantidade)</div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 14, alignItems: "center" }}>
         <div style={{ width: 260, height: 260, display: "grid", placeItems: "center" }}>
           <svg viewBox={`0 0 ${w} ${h}`} width="260" height="260" aria-label={title} role="img">
             {total ? (
-              parts.map((it) => {
+              items.map((it) => {
                 const start = angle;
-                const sweep = (it.value / total) * 360;
+                const sweep = (Number(it.value || 0) / total) * 360;
                 const end = angle + sweep;
                 angle = end;
-
-                if (it.value <= 0) return null;
-                return <path key={it.key} d={arcPath(start, end)} fill={it.color} />;
+                if ((it.value || 0) <= 0) return null;
+                return <path key={it.label} d={arcPath(start, end)} fill={colorForLabel(it.label)} />;
               })
             ) : (
               <circle cx={cx} cy={cy} r={r} fill="rgba(0,0,0,0.06)" />
@@ -403,11 +842,7 @@ function PieProcessTypes({ title, active = 0, passive = 0, other = 0 }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {[
-            { label: "Ativo", value: a, color: "#1bbf6b" },
-            { label: "Passivo", value: p, color: "#d11a2a" },
-            { label: "Outros", value: o, color: "#3C78D8" },
-          ].map((row) => (
+          {items.map((row) => (
             <div
               key={row.label}
               style={{
@@ -419,9 +854,20 @@ function PieProcessTypes({ title, active = 0, passive = 0, other = 0 }) {
                 border: "1px solid rgba(0,0,0,0.08)",
                 background: "#fff",
               }}
+              title={row.label}
             >
-              <span style={{ width: 12, height: 12, borderRadius: 999, background: row.color, flex: "0 0 auto" }} />
-              <div style={{ flex: 1, fontWeight: 900 }}>{row.label}</div>
+              <span
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: 999,
+                  background: colorForLabel(row.label),
+                  flex: "0 0 auto",
+                }}
+              />
+              <div style={{ flex: 1, fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {row.label}
+              </div>
               <div style={{ fontWeight: 900 }}>{row.value || 0}</div>
             </div>
           ))}
@@ -433,9 +879,6 @@ function PieProcessTypes({ title, active = 0, passive = 0, other = 0 }) {
 
 /* =========================
    ✅ Barra Final Score (0..1000)
-   - preenchida até o ponto
-   - cor do preenchimento = cor do degradê no ponto
-   - sem seta
 ========================= */
 function lerp(a, b, t) {
   return a + (b - a) * t;
@@ -447,9 +890,9 @@ function clamp01(t) {
 function scoreColorAt01(t) {
   const tt = clamp01(t);
 
-  const r1 = { r: 0xd1, g: 0x1a, b: 0x2a }; // vermelho
-  const r2 = { r: 0xf0, g: 0xb4, b: 0x29 }; // amarelo/laranja
-  const r3 = { r: 0x1b, g: 0xbf, b: 0x6b }; // verde
+  const r1 = { r: 0xd1, g: 0x1a, b: 0x2a };
+  const r2 = { r: 0xf0, g: 0xb4, b: 0x29 };
+  const r3 = { r: 0x1b, g: 0xbf, b: 0x6b };
 
   if (tt <= 0.5) {
     const k = tt / 0.5;
@@ -471,7 +914,6 @@ function ScoreGradientBar({ title, value = 0, min = 0, max = 1000, subtitle = ""
   const clamped = Math.max(min, Math.min(max, isFinite(v) ? v : 0));
   const t01 = max > min ? (clamped - min) / (max - min) : 0;
   const pct = clamp01(t01) * 100;
-
   const fillColor = scoreColorAt01(t01);
 
   return (
@@ -611,23 +1053,66 @@ function sumClaimsFallbackFromCases(cases) {
   return { passive, active, source: "sum(cases.claim_value by type)" };
 }
 
+/* =========================
+   FILTRO DE CLASSES QUE NÃO INTERESSAM
+   (usando seu regex)
+========================= */
+
+function stripAccentsLoose(s) {
+  return (s || "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/*
+   COLE SEU REGEX COMPLETO AQUI
+   Pode colocar exatamente o que você montou.
+*/
+const CLASSE_EXCLUDE_REGEX = new RegExp(
+  String.raw`(?<!\w)(AP\s)(?!\w)|\b(agravo|apelação|carta de ordem|carta precatória|embargos|cautelares|alvará|rescisória|recurso|homologação|testamento|penal|criminal|infância\s+(busca|guarda)|juventude\s+(busca|guarda))\b`,
+  "i"
+);
+
+
+/* =========================
+   NOVA FUNÇÃO
+========================= */
 function buildClassAmounts(cases) {
   const map = new Map();
 
   for (const c of cases || []) {
-    const klass = (c?.process_class || "SEM CLASSE").toString().trim() || "SEM CLASSE";
+
+    const klassOriginal = (c?.process_class || "").toString().trim();
+    if (!klassOriginal) continue;
+
+    // normaliza para testar no regex
+    const klassTest = stripAccentsLoose(klassOriginal).toLowerCase();
+
+    // se bater no regex, IGNORA essa classe
+    if (CLASSE_EXCLUDE_REGEX.test(klassTest)) continue;
+
+    const klass = klassOriginal;
     const t = (c?.type || "").toString().trim().toUpperCase();
     const claim = parseMoneyToNumber(c?.claim_value);
 
-    if (!map.has(klass)) map.set(klass, { label: klass, passive: 0, active: 0 });
+    if (!map.has(klass)) {
+      map.set(klass, { label: klass, passive: 0, active: 0 });
+    }
 
     const row = map.get(klass);
-    if (t === "PASSIVE" || t === "PASSIVO") row.passive += claim;
-    else if (t === "ACTIVE" || t === "ATIVO") row.active += claim;
+
+    if (t === "PASSIVE" || t === "PASSIVO") {
+      row.passive += claim;
+    } else if (t === "ACTIVE" || t === "ATIVO") {
+      row.active += claim;
+    }
   }
 
-  const items = Array.from(map.values()).filter((x) => (x.passive || 0) > 0 || (x.active || 0) > 0);
-  items.sort((a, b) => b.passive + b.active - (a.passive + a.active));
+  const items = Array.from(map.values())
+    .filter((x) => (x.passive || 0) > 0 || (x.active || 0) > 0)
+    .sort((a, b) => (b.passive + b.active) - (a.passive + a.active));
+
   return items.slice(0, 12);
 }
 
@@ -661,22 +1146,52 @@ function buildCasesByYear(cases) {
 }
 
 /* =========================
-   Veículos (mantido)
+   ✅ NOVO: contagem PASSIVA por RAMO/JURISDIÇÃO
 ========================= */
-function stableHashNumber(str) {
-  const s = (str || "").toString();
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return Math.abs(h);
+function normalizeJurisdictionLabel(v) {
+  const s = (v == null ? "" : String(v)).trim();
+  if (!s) return "SEM JURISDIÇÃO";
+
+  let out = s.replace(/\s+/g, " ");
+
+  const upper = out.toUpperCase();
+  const aliases = new Map([
+    ["CIVEL", "CÍVEL"],
+    ["CÍVEL", "CÍVEL"],
+    ["TRABALHISTA", "TRABALHISTA"],
+    ["TRABALHO", "TRABALHISTA"],
+    ["FEDERAL", "FEDERAL"],
+    ["CRIMINAL", "CRIMINAL"],
+    ["PENAL", "CRIMINAL"],
+  ]);
+
+  if (aliases.has(upper)) out = aliases.get(upper);
+
+  return out;
 }
 
-function fakeFipeValue(vehicleName) {
-  const h = stableHashNumber(vehicleName);
-  const base = 28_000 + (h % 392_000);
-  return Math.round(base / 500) * 500;
+function buildPassiveJurisdictionCounts(cases, { topN = 7 } = {}) {
+  const map = new Map();
+
+  for (const c of cases || []) {
+    const t = (c?.type || "").toString().trim().toUpperCase();
+    if (t !== "PASSIVE" && t !== "PASSIVO") continue;
+
+    const jur = normalizeJurisdictionLabel(c?.jurisdiction);
+    map.set(jur, (map.get(jur) || 0) + 1);
+  }
+
+  const all = Array.from(map.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => (b.value || 0) - (a.value || 0));
+
+  if (all.length <= topN) return all;
+
+  const top = all.slice(0, topN);
+  const rest = all.slice(topN);
+  const restSum = rest.reduce((s, x) => s + Number(x.value || 0), 0);
+
+  return restSum > 0 ? [...top, { label: "Outras", value: restSum }] : top;
 }
 
 /* =========================
@@ -740,10 +1255,7 @@ function buildFoundAddressesFromRegIntegrity(regObj) {
   if (candidates && candidates.length) return candidates;
 
   const raw = getObjRaw(regObj);
-  const alt =
-    (Array.isArray(raw?.addresses) && raw.addresses) ||
-    (Array.isArray(raw?.found_addresses) && raw.found_addresses) ||
-    null;
+  const alt = (Array.isArray(raw?.addresses) && raw.addresses) || (Array.isArray(raw?.found_addresses) && raw.found_addresses) || null;
 
   return alt && alt.length ? alt : [];
 }
@@ -829,12 +1341,7 @@ function getProScoreData(anyObj) {
 
 function getCompanyName(pro) {
   const a = firstObj(pro?.federal_revenue_data_business);
-  return (
-    safeStr(a?.company_name) ||
-    safeStr(a?.trade_name) ||
-    safeStr(firstObj(pro?.proscore_base_name)?.found_name) ||
-    "—"
-  );
+  return safeStr(a?.company_name) || safeStr(a?.trade_name) || safeStr(firstObj(pro?.proscore_base_name)?.found_name) || "—";
 }
 
 function getCnpjCpf(pro) {
@@ -861,9 +1368,29 @@ function getCapital(pro) {
 }
 
 function getPresumedRevenue(pro) {
+  if (!pro) return 0;
+
+  // 1️⃣ Prioridade: CPF with presumed income
+  const rendaCpf = firstObj(pro?.cpf_with_presumed_income);
+  const rendaCpfValue =
+    rendaCpf?.presumed_income_value ??
+    rendaCpf?.presumed_income ??
+    rendaCpf?.income_value ??
+    rendaCpf?.income ??
+    null;
+
+  const rendaCpfNum = parseMoneyToNumber(rendaCpfValue);
+  if (rendaCpfNum > 0) return rendaCpfNum;
+
+  // 2️⃣ Fallback: presumed_revenue (empresa)
   const r = firstObj(pro?.presumed_revenue);
-  return parseMoneyToNumber(r?.presumed_revenue_value);
+  const rendaEmpresa = parseMoneyToNumber(r?.presumed_revenue_value);
+
+  if (rendaEmpresa > 0) return rendaEmpresa;
+
+  return 0;
 }
+
 
 function getReceitaStatus(pro) {
   const r = firstObj(pro?.federal_revenue_data_business);
@@ -907,17 +1434,8 @@ function buildDpcLimitSeries(dpcItems) {
 function getEmployeesRangeFromIndicators(pro) {
   if (!pro || typeof pro !== "object") return null;
 
-  const indicators =
-    pro?.business_activity_indicators ||
-    pro?.BUSINESS_ACTIVITY_INDICATORS ||
-    pro?.businessActivityIndicators ||
-    null;
-
-  const list = Array.isArray(indicators)
-    ? indicators
-    : indicators && typeof indicators === "object"
-      ? [indicators]
-      : [];
+  const indicators = pro?.business_activity_indicators || pro?.BUSINESS_ACTIVITY_INDICATORS || pro?.businessActivityIndicators || null;
+  const list = Array.isArray(indicators) ? indicators : indicators && typeof indicators === "object" ? [indicators] : [];
 
   const norm = (k) => k.toLowerCase().replace(/\s+/g, " ").trim();
 
@@ -940,9 +1458,7 @@ function getEmployeesRangeFromIndicators(pro) {
     if (!obj || typeof obj !== "object") return null;
     const keys = Object.keys(obj);
 
-    for (const k of keys) {
-      if (wanted.includes(norm(k))) return k;
-    }
+    for (const k of keys) if (wanted.includes(norm(k))) return k;
     for (const k of keys) {
       const nk = norm(k);
       if (nk.includes("employee") || nk.includes("funcion")) return k;
@@ -988,28 +1504,10 @@ export default function SheetDashboard({ kappiObj, regObj = null, proScoreObj = 
   const byYear = useMemo(() => buildCasesByYear(proc.cases), [proc]);
   const classAmounts = useMemo(() => buildClassAmounts(proc.cases), [proc]);
 
-  // Veículos
-  const [vehicleName, setVehicleName] = useState("");
-  const [veiculos, setVeiculos] = useState(() => [
-    { id: "vei-1", name: "Toyota Corolla 2020", fipeValue: fakeFipeValue("Toyota Corolla 2020") },
-  ]);
-
-  function addVehicle() {
-    const name = (vehicleName || "").trim();
-    if (!name) return;
-    const v = { id: `vei-${Date.now()}`, name, fipeValue: fakeFipeValue(name) };
-    setVeiculos((prev) => [v, ...prev]);
-    setVehicleName("");
-  }
-
-  function removeVehicle(id) {
-    setVeiculos((prev) => prev.filter((x) => x.id !== id));
-  }
-
-  const veiculosSorted = useMemo(() => [...veiculos].sort((a, b) => (b.fipeValue || 0) - (a.fipeValue || 0)), [veiculos]);
-
   const activeClaims = claimTotals.active || 0;
   const passiveClaims = claimTotals.passive || 0;
+
+  const passiveJurPieItems = useMemo(() => buildPassiveJurisdictionCounts(proc.cases, { topN: 7 }), [proc]);
 
   /* =========================
      ✅ ENDEREÇOS
@@ -1059,7 +1557,16 @@ export default function SheetDashboard({ kappiObj, regObj = null, proScoreObj = 
     return fallbackAddressesFromEntities;
   }, [foundAddresses, fallbackAddressesFromEntities]);
 
+  // ✅ atualização: garante que o selectedAddressId não fique inválido quando addressRows muda
   const [selectedAddressId, setSelectedAddressId] = useState(() => addressRows[0]?.id || "");
+  useEffect(() => {
+    if (!addressRows.length) {
+      setSelectedAddressId("");
+      return;
+    }
+    const exists = addressRows.some((x) => x.id === selectedAddressId);
+    if (!exists) setSelectedAddressId(addressRows[0].id);
+  }, [addressRows, selectedAddressId]);
 
   const selectedAddress = useMemo(() => {
     if (!addressRows.length) return null;
@@ -1114,23 +1621,6 @@ export default function SheetDashboard({ kappiObj, regObj = null, proScoreObj = 
     return max;
   }, [dpcItems]);
 
-  const processTypeCounts = useMemo(() => {
-    const map = {};
-    for (const it of proc.items || []) map[String(it.label || "").toUpperCase()] = Number(it.value || 0);
-
-    const passive = (map.PASSIVE || 0) + (map.PASSIVO || 0);
-    const active = (map.ACTIVE || 0) + (map.ATIVO || 0);
-
-    let other = 0;
-    for (const [k, v] of Object.entries(map)) {
-      const kk = k.toUpperCase();
-      if (kk === "PASSIVE" || kk === "PASSIVO" || kk === "ACTIVE" || kk === "ATIVO") continue;
-      other += Number(v || 0);
-    }
-
-    return { active, passive, other };
-  }, [proc]);
-
   return (
     <div className="ck-dashboard">
       {/* =========================
@@ -1140,7 +1630,7 @@ export default function SheetDashboard({ kappiObj, regObj = null, proScoreObj = 
         <div className="ck-rowHead">
           <div>
             <div className="ck-section__title" style={{ marginBottom: 0 }}>
-              Dashboard (dados reais) + Veículos
+              Dashboard (dados reais)
             </div>
             <div className="ck-sub" style={{ marginTop: 6 }}>
               Fonte dos totais de processos: <b>{claimTotals.source}</b>
@@ -1149,26 +1639,36 @@ export default function SheetDashboard({ kappiObj, regObj = null, proScoreObj = 
         </div>
 
         <div className="ck-metrics ck-metrics--4" style={{ marginTop: 10 }}>
-          <div className="ck-metric">
-            <div className="ck-metric__k">Empresas (entities)</div>
-            <div className="ck-metric__v">{entities.length}</div>
-          </div>
+  <div className="ck-metric">
+    <div className="ck-metric__k">Empresas (entities)</div>
+    <div className="ck-metric__v">{entities.length}</div>
+  </div>
 
-          <div className="ck-metric">
-            <div className="ck-metric__k">Patrimônio total (capital social)</div>
-            <div className="ck-metric__v">{formatBRL(totalCapitalSocial)}</div>
-          </div>
+  <div className="ck-metric">
+    <div className="ck-metric__k">Patrimônio total (capital social)</div>
+    <div className="ck-metric__v">{formatBRL(totalCapitalSocial)}</div>
+  </div>
 
-          <div className="ck-metric">
-            <div className="ck-metric__k">Processos</div>
-            <div className="ck-metric__v">{proc.total}</div>
-          </div>
+  <div className="ck-metric">
+    <div className="ck-metric__k">Renda presumida</div>
+    <div className="ck-metric__v">{formatBRL(proPresumedRevenue)}</div>
+  </div>
 
-          <div className="ck-metric">
-            <div className="ck-metric__k">Alertas</div>
-            <div className="ck-metric__v">{alertCount}</div>
-          </div>
-        </div>
+  <div className="ck-metric">
+    <div className="ck-metric__k">Classe social</div>
+    <div className="ck-metric__v">
+      {(() => {
+        const cls = pro?.presumed_social_class?.[0];
+        if (!cls) return "—";
+        const code = cls.social_class ?? cls.class ?? cls.code ?? "";
+        const desc = cls.social_class_description ?? cls.description ?? "";
+        if (code && desc) return `Classe ${code} — ${desc}`;
+        return code ? `Classe ${code}` : (desc || "—");
+      })()}
+    </div>
+  </div>
+</div>
+
 
         <div className="ck-metrics ck-metrics--4" style={{ marginTop: 10 }}>
           <div className="ck-metric">
@@ -1204,35 +1704,189 @@ export default function SheetDashboard({ kappiObj, regObj = null, proScoreObj = 
           ) : null}
         </div>
 
-        <div className="ck-section">
-          <div className="ck-section__title">Resumo financeiro de processos (real)</div>
+        {/* =========================
+    Resumo financeiro de crédito
+========================= */}
+<div className="ck-section">
+  {/* =========================
+    Resumo de tramitação (últimos 6/12/18 meses)
+========================= */}
+<div className="ck-section">
+  <div className="ck-section__title">Resumo de tramitação</div>
 
-          <div className="ck-mini" style={{ marginTop: 10 }}>
-            <span className="ck-pill">
-              <b>Total processos:</b> {proc.total}
-            </span>
-            <span className="ck-pill">
-              <b>Alertas:</b> {alertCount}
-            </span>
-            <span className="ck-pill">
-              <b>Passivo:</b> {formatBRL(passiveClaims)}
-            </span>
-            <span className="ck-pill">
-              <b>Ativo:</b> {formatBRL(activeClaims)}
-            </span>
+  {(!proc?.cases || !proc.cases.length) ? (
+    <div className="ck-empty">Sem casos para calcular tramitação.</div>
+  ) : (
+    (() => {
+      const counts = buildInTramitacaoCounts(proc.cases);
+
+      return (
+        <>
+          <div className="ck-metrics ck-metrics--4" style={{ marginTop: 10 }}>
+            <div className="ck-metric">
+              <div className="ck-metric__k">Em tramitação (últimos 6 meses)</div>
+              <div className="ck-metric__v">{counts.last6}</div>
+            </div>
+
+            <div className="ck-metric">
+              <div className="ck-metric__k">Em tramitação (últimos 12 meses)</div>
+              <div className="ck-metric__v">{counts.last12}</div>
+            </div>
+
+            <div className="ck-metric">
+              <div className="ck-metric__k">Em tramitação (últimos 18 meses)</div>
+              <div className="ck-metric__v">{counts.last18}</div>
+            </div>
+
+            <div className="ck-metric">
+              <div className="ck-metric__k">Total de processos</div>
+              <div className="ck-metric__v">{proc.cases.length}</div>
+            </div>
           </div>
+        </>
+      );
+    })()
+  )}
+</div>
 
-          <div className="ck-smallNote" style={{ marginTop: 10 }}>
-            * Se o KAPPI entregar <code>legal.total</code> ou <code>legal.totalizers_per_document</code>, eu uso isso. Senão,
-            faço fallback somando <code>claim_value</code> dos casos.
+  {!pro ? (
+  <div className="ck-empty">Sem dados de PRO_SCORE para este documento.</div>
+) : (
+  (() => {
+    const data = pro;
+
+    const baseName = data?.proscore_base_name?.[0];
+    const ccf = data?.ccf_passage_registration_721_to_1830_days?.[0];
+    const renda = data?.cpf_with_presumed_income?.[0];
+    const classe = data?.presumed_social_class?.[0];
+    const death = data?.synthetic_death_data?.[0];
+
+    // ✅ NOVO: antecedentes criminais (Polícia Federal) — robusto
+    const pf =
+      data?.criminal_records_federal_police?.[0] ||
+      data?.federal_police_criminal_records?.[0] ||
+      data?.pf_criminal_records?.[0] ||
+      data?.antecedentes_criminais_policia_federal?.[0] ||
+      data?.policia_federal_antecedentes_criminais?.[0] ||
+      null;
+
+    function boolFromAny(v) {
+      // aceita: true/false, "SIM"/"NAO", "S"/"N", "1"/"0", number
+      if (v === true) return true;
+      if (v === false) return false;
+      if (typeof v === "number") return v > 0;
+      const s = String(v ?? "").trim().toUpperCase();
+      if (!s) return null;
+      if (["SIM", "S", "TRUE", "1", "YES"].includes(s)) return true;
+      if (["NAO", "NÃO", "N", "FALSE", "0", "NO"].includes(s)) return false;
+      return null;
+    }
+
+    function pfHasCriminalRecord(pfObj) {
+      if (!pfObj || typeof pfObj !== "object") return null;
+
+      // tenta achar um "flag" direto
+      const direct =
+        pfObj.has_criminal_record ??
+        pfObj.has_record ??
+        pfObj.has_occurrence ??
+        pfObj.has_occurrences ??
+        pfObj.hasAntecedente ??
+        pfObj.antecedente ??
+        pfObj.antecedentes ??
+        pfObj.found ??
+        pfObj.found_occurrences ??
+        pfObj.listed ??
+        pfObj.listed_in_database ??
+        pfObj.listed_in_pf_database ??
+        pfObj.listed_in_police_database ??
+        null;
+
+      const b1 = boolFromAny(direct);
+      if (b1 !== null) return b1;
+
+      // se vier contagem
+      const count =
+        pfObj.occurrence_count ??
+        pfObj.occurrences_count ??
+        pfObj.records_count ??
+        pfObj.total_occurrences ??
+        pfObj.total ??
+        null;
+
+      const n = Number(String(count ?? "").replace(/[^\d.-]/g, ""));
+      if (Number.isFinite(n)) return n > 0;
+
+      // se vier lista
+      const list =
+        pfObj.occurrences ||
+        pfObj.records ||
+        pfObj.items ||
+        pfObj.results ||
+        pfObj.data;
+
+      if (Array.isArray(list)) return list.length > 0;
+
+      return null;
+    }
+
+    const pfStatusBool = pfHasCriminalRecord(pf);
+    const pfLabel =
+      pfStatusBool === null ? "—" : pfStatusBool ? "Sim" : "Não";
+
+    const pfDetails =
+      pf?.description ||
+      pf?.message ||
+      pf?.status_description ||
+      pf?.observation ||
+      "";
+
+    return (
+      <div className="ck-metrics ck-metrics--4" style={{ marginTop: 10 }}>
+        {/* ✅ 1) Proscore Base Name primeiro */}
+        <div className="ck-metric">
+          <div className="ck-metric__k">Proscore Base Name</div>
+          <div className="ck-metric__v">{baseName?.found_name || "—"}</div>
+        </div>
+
+        {/* ✅ 2) NOVO: Antecedentes criminais PF */}
+        <div className="ck-metric">
+          <div className="ck-metric__k">Antecedentes criminais — Polícia Federal</div>
+          <div className="ck-metric__v">{pfLabel}</div>
+          {pfDetails ? <div className="ck-smallNote">{pfDetails}</div> : null}
+        </div>
+
+        <div className="ck-metric">
+          <div className="ck-metric__k">CCF (721–1830 dias)</div>
+          <div className="ck-metric__v">
+            {ccf ? `${ccf.occurrence_count} ocorrência(s)` : "—"}
+          </div>
+          <div className="ck-smallNote">{ccf?.passage_description || ""}</div>
+        </div>
+        <div className="ck-metric">
+          <div className="ck-metric__k">Synthetic Death Data</div>
+          <div className="ck-metric__v">
+            {death
+              ? String(death.listed_in_death_database).toUpperCase() === "NAO"
+                ? "Não"
+                : "Sim"
+              : "—"}
           </div>
         </div>
       </div>
+    );
+  })()
+)}
 
+</div>
+
+      </div>
+
+      {/* ✅ “Classe processual (passivo x ativo)” */}
       <div className="ck-span2">
-        <VerticalGroupedBars
+        <AbbrevGroupedBars
           title="Classe processual (passivo x ativo)"
-          subtitle="Somatório por classe (com base em claim_value) — visão complementar"
+          subtitle="Somatório por classe (com base em claim_value) — siglas no eixo X + legenda à direita"
           items={classAmounts}
         />
         {!classAmounts.length ? (
@@ -1242,44 +1896,8 @@ export default function SheetDashboard({ kappiObj, regObj = null, proScoreObj = 
         ) : null}
       </div>
 
-      {/* Veículos */}
-      <div className="ck-section">
-        <div className="ck-section__title">Veículos</div>
-
-        <div className="ck-addRow">
-          <input value={vehicleName} onChange={(e) => setVehicleName(e.target.value)} placeholder="Ex: Honda Civic 2019" />
-          <button className="ck-btn ck-btn--ghost" type="button" onClick={addVehicle}>
-            Adicionar veículo
-          </button>
-        </div>
-
-        <div className="ck-smallNote">* Mantive esta parte como você pediu.</div>
-
-        <div className="ck-miniTable">
-          <div className="ck-miniTable__head">
-            <div>Veículo</div>
-            <div style={{ textAlign: "right" }}>Valor (estimado)</div>
-            <div style={{ width: 80, textAlign: "right" }}>Ações</div>
-          </div>
-
-          {veiculosSorted.map((v) => (
-            <div className="ck-miniTable__row" key={v.id}>
-              <div className="ck-ellipsis" title={v.name}>
-                {v.name}
-              </div>
-              <div style={{ textAlign: "right", fontWeight: 900 }}>{formatBRL(v.fipeValue)}</div>
-              <div style={{ textAlign: "right" }}>
-                <button className="ck-linkBtn" onClick={() => removeVehicle(v.id)} type="button">
-                  Remover
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* =========================
-          ✅ PRO_SCORE (fica acima do mapa+tabela)
+          ✅ PRO_SCORE (KPIs + gráficos)
       ========================= */}
       <div className="ck-section">
         <div className="ck-section__title">PRO_SCORE (KPIs + gráficos)</div>
@@ -1375,29 +1993,27 @@ export default function SheetDashboard({ kappiObj, regObj = null, proScoreObj = 
                     </div>
                   )}
                 </div>
-
-                {/* ✅ REMOVIDO: aquele bloco abaixo do gráfico (Sócios/Adm + Consulta Receita) */}
               </div>
 
-              <PieProcessTypes
-                title="Processos: Ativo x Passivo x Outros"
-                active={processTypeCounts.active}
-                passive={processTypeCounts.passive}
-                other={processTypeCounts.other}
-              />
+              <div>
+                {passiveJurPieItems.length ? (
+                  <PiePassiveJurisdictions title="Processos passivos por Ramo / Jurisdição" items={passiveJurPieItems} />
+                ) : (
+                  <div className="ck-empty" style={{ padding: 14 }}>
+                    Sem processos passivos com <code>jurisdiction</code> no payload.
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
       </div>
 
       {/* =========================
-          ✅ Endereços + tabela + mapa (de volta)
+          ✅ Endereços + tabela + mapa
       ========================= */}
       <div className="ck-section">
-        <div
-          className="ck-section__title"
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
-        >
+        <div className="ck-section__title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <span>Endereços (FOUND ADDRESSES)</span>
           {mapsLink ? (
             <a className="ck-link" href={mapsLink} target="_blank" rel="noreferrer">

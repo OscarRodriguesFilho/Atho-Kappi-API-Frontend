@@ -4,7 +4,7 @@ import "./index.css";
 /* =========================
    Config
 ========================= */
-const API_BASE = "http://localhost:5502"; // ✅ tua API do frontend
+const API_BASE = "http://localhost:5502"; // ✅ tua API do backend (porta 5502)
 const KAPPI_REAL_BASE = "http://localhost:5502"; // ✅ Kappi REAL (porta 5502)
 
 /* =========================
@@ -362,7 +362,7 @@ export default function Tabela({ refreshKey = 0 }) {
         const ms = it.dataProcessamento_ms ?? null;
 
         // se usuário ativou filtro por data, mas o item não tem data parseável:
-        // -> eu recomendo EXCLUIR para o filtro ser "confiável".
+        // -> exclui para o filtro ser confiável
         okDate = ms != null;
 
         if (okDate && fromMs != null) okDate = ms >= fromMs;
@@ -598,7 +598,7 @@ export default function Tabela({ refreshKey = 0 }) {
   }
 
   // ============================================================
-  // ✅ NOVO: SINQIA = primeiro gera XML do CPF, depois cadastra
+  // ✅ SINQIA = primeiro gera XML do CPF, depois cadastra
   // 1) GET /gerar_xml/<cpf>
   // 2) GET /cadastrar_sinq
   // ============================================================
@@ -620,9 +620,9 @@ export default function Tabela({ refreshKey = 0 }) {
       // 1) gera XML
       const urlXml = `${API_BASE}/gerar_xml/${encodeURIComponent(cpf)}`;
       console.log("GERAR XML URL:", urlXml);
-      await getJson(urlXml); // ✅ mesmo se não vier JSON, passa (vira {raw: ...})
+      await getJson(urlXml);
 
-      // 2) cadastra na sinqia (usa o último XML gerado)
+      // 2) cadastra na sinqia
       const urlSinq = `${API_BASE}/cadastrar_sinq`;
       console.log("CADASTRAR SINQ URL:", urlSinq);
       await getJson(urlSinq);
@@ -633,6 +633,76 @@ export default function Tabela({ refreshKey = 0 }) {
     } catch (err) {
       showAppModal("Erro Sinqia", "❌ " + (err.message || String(err)));
       setSaveStatus("❌ Erro Sinqia");
+    }
+  }
+
+  // ============================================================
+  // ✅ NOVO: CADASTRAR NA TERRA (GET /api/beneficiario_por_cpf?cpf=...)
+  // - dispara a rota que:
+  //   1) busca no CSV
+  //   2) monta payload
+  //   3) POST pro webhook n8n
+  // - mostra retorno em modal
+  // ============================================================
+  async function actionCadastrarTerra() {
+    if (!CURRENT.cpf) {
+      showAppModal("Atenção", "Selecione uma linha antes.");
+      return;
+    }
+
+    const cpf = digitsOnly(CURRENT.cpf);
+    if (!cpf) {
+      showAppModal("Atenção", "CPF inválido.");
+      return;
+    }
+
+    setSaveStatus('<span class="loading-dot"></span> cadastrando na Terra (n8n)...');
+
+    try {
+      const url = `${API_BASE}/api/beneficiario_por_cpf?cpf=${encodeURIComponent(cpf)}`;
+      console.log("CADASTRAR NA TERRA URL:", url);
+
+      const data = await getJson(url);
+
+      // monta um modal bonitinho com o retorno
+      const n8n = data?._n8n || {};
+      const ok = n8n.webhook_sent === true;
+
+      const html = `
+        <div style="line-height:1.35">
+          <div class="mb-2">
+            <b>Beneficiário:</b> ${String(data?.["Beneficiário"] ?? "").replaceAll("<", "&lt;")}
+          </div>
+          <div class="mb-1"><b>CPF/CNPJ:</b> <span class="mono">${String(data?.["CPF/CNPJ"] ?? "")}</span></div>
+          <div class="mb-1"><b>Banco:</b> ${String(data?.["Banco"] ?? "")}</div>
+          <div class="mb-1"><b>Agência:</b> ${String(data?.["Agência"] ?? "")}</div>
+          <div class="mb-1"><b>Conta corrente:</b> ${String(data?.["Conta corrente"] ?? "")}</div>
+          <div class="mb-2"><b>Valor:</b> <span class="mono">${String(data?.["Valor"] ?? "")}</span></div>
+
+          <hr class="my-2" />
+
+          <div class="mb-1"><b>Webhook n8n:</b> ${
+            ok ? "✅ enviado" : "❌ falhou"
+          }</div>
+          <div class="mb-1"><b>Status code:</b> <span class="mono">${String(n8n.webhook_status_code ?? "-")}</span></div>
+          ${
+            n8n.webhook_error
+              ? `<div class="mt-2"><b>Erro:</b><div class="small text-muted" style="white-space:pre-wrap">${String(
+                  n8n.webhook_error
+                ).replaceAll("<", "&lt;")}</div></div>`
+              : ""
+          }
+        </div>
+      `;
+
+      showAppModal("Cadastrar na Terra", html);
+
+      setSaveStatus("✅ Terra acionado. Recarregando...");
+      await loadTable();
+      setTimeout(() => setSaveStatus(""), 700);
+    } catch (err) {
+      showAppModal("Erro Terra", "❌ " + (err.message || String(err)));
+      setSaveStatus("❌ Erro Terra");
     }
   }
 
@@ -1252,6 +1322,11 @@ export default function Tabela({ refreshKey = 0 }) {
               </button>
               <button className="btn btn-outline-dark" id="btnRodarEmail" onClick={actionEmail}>
                 Re-rodar E-mail (API)
+              </button>
+
+              {/* ✅ NOVO BOTÃO */}
+              <button className="btn btn-outline-primary" id="btnCadastrarTerra" onClick={actionCadastrarTerra}>
+                Cadastrar na Terra
               </button>
             </div>
 
