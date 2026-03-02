@@ -4,9 +4,10 @@ import "./index.css";
 /* =========================
    Ícones (SVG)
 ========================= */
+
 function IconHome(props) {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24" width="18" height="18" {...props}>
       <path
         d="M4 11.5L12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-8.5z"
         fill="none"
@@ -20,24 +21,27 @@ function IconHome(props) {
 
 function IconDashboard(props) {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...props}>
-      <path d="M4 13a8 8 0 1 1 16 0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M12 13l4-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M4 19h16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconBuilding(props) {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24" width="18" height="18" {...props}>
       <path
-        d="M4 21h16M6 21V7l6-3 6 3v14M9 10h2M9 13h2M9 16h2M13 10h2M13 13h2M13 16h2"
+        d="M4 13a8 8 0 1 1 16 0"
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
-        strokeLinejoin="round"
+      />
+      <path
+        d="M12 13l4-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M4 19h16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -45,7 +49,7 @@ function IconBuilding(props) {
 
 function IconSearch(props) {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 24 24" width="18" height="18" {...props}>
       <path
         d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"
         fill="none"
@@ -63,17 +67,49 @@ function IconSearch(props) {
   );
 }
 
+/* 🔥 Ícone de Histórico (relógio com seta) */
+function IconHistory(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...props}>
+      {/* seta de retorno */}
+      <path
+        d="M3 12a9 9 0 1 0 3-6.7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M3 4v5h5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      {/* ponteiros do relógio */}
+      <path
+        d="M12 7v6l4 2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /* =========================
-   Dock flutuante
+   Sidebar
 ========================= */
+
 export default function Sidebar({ activeKey = "home", onNavigate }) {
   const items = useMemo(
     () => [
       { key: "home", label: "Home", icon: <IconHome /> },
-      { key: "atho", label: "Atho", icon: <IconBuilding /> },
       { key: "dash", label: "Dashboard", icon: <IconDashboard /> },
-
-      // ✅ TROCA AQUI:
+      { key: "historico", label: "Histórico", icon: <IconHistory /> },
       { key: "consulta", label: "Consulta Individual", icon: <IconSearch /> },
     ],
     []
@@ -84,16 +120,15 @@ export default function Sidebar({ activeKey = "home", onNavigate }) {
   }
 
   return (
-    <aside className="fdock" aria-label="Dock lateral">
+    <aside className="fdock">
       {items.map((it) => {
         const active = it.key === activeKey;
+
         return (
           <button
             key={it.key}
             type="button"
             className={`fdock-item ${active ? "is-active" : ""}`}
-            title={it.label}
-            aria-label={it.label}
             onClick={() => go(it.key)}
           >
             <span className="fdock-ico">{it.icon}</span>

@@ -15,22 +15,23 @@ import Regras from "./components/regras";
 // ✅ Sidebar
 import Sidebar from "./components/sidebar";
 
-// ✅ Página nova
+// ✅ Páginas
 import ConsultaIndividualPage from "./pages/consulta_individual";
+import HistoricoPage from "./pages/historico"; // 🔥 NOVO
 
 export default function App() {
-  // 🔑 chave global de refresh
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // ✅ página atual
-  const [pageKey, setPageKey] = useState("home"); // home | consulta | ...
+  // 🔑 Página ativa
+  const [pageKey, setPageKey] = useState("home"); // home | consulta | historico
 
-  // 🔁 função chamada após upload OK
   const triggerRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
   }, []);
 
-  // ✅ renderiza a home (seu layout atual)
+  // =========================
+  // HOME VIEW (seu layout atual)
+  // =========================
   const HomeView = useMemo(() => {
     return (
       <div className="page">
@@ -59,25 +60,38 @@ export default function App() {
     );
   }, [refreshKey, triggerRefresh]);
 
-  // ✅ renderiza a página atual
+  // =========================
+  // Renderização de páginas
+  // =========================
   function renderPage() {
-    if (pageKey === "consulta") {
-      return (
-        <div className="page">
-          <div className="page__container">
-            <ConsultaIndividualPage refreshKey={refreshKey} />
+    switch (pageKey) {
+      case "consulta":
+        return (
+          <div className="page">
+            <div className="page__container">
+              <ConsultaIndividualPage refreshKey={refreshKey} />
+            </div>
           </div>
-        </div>
-      );
-    }
+        );
 
-    // (por enquanto) todo resto cai na home
-    return HomeView;
+      case "historico": // 🔥 NOVO
+        return (
+          <div className="page">
+            <div className="page__container">
+              <HistoricoPage />
+            </div>
+          </div>
+        );
+
+      case "home":
+      default:
+        return HomeView;
+    }
   }
 
   return (
     <>
-      {/* ✅ Sidebar navegável */}
+      {/* Sidebar */}
       <Sidebar activeKey={pageKey} onNavigate={setPageKey} />
 
       <Header />
