@@ -1,9 +1,14 @@
+// src/components/upload/index.jsx
 import React, { useRef, useState, useEffect } from "react";
 import "./index.css";
 
-const UPLOAD_URL = "http://localhost:5502/upload_processar_csv";
-
 export default function Upload({ onUploadSuccess }) {
+  // ✅ padroniza base via .env (e fallback em localhost)
+  const BACKEND_BASE =
+    (import.meta?.env?.VITE_BACKEND_BASE || "").trim() || "http://localhost:5502";
+
+  const UPLOAD_URL = `${BACKEND_BASE}/upload_processar_csv`;
+
   const fileRef = useRef(null);
 
   const [status, setStatus] = useState(null);
@@ -122,9 +127,29 @@ export default function Upload({ onUploadSuccess }) {
       const resp = await fetch(UPLOAD_URL, {
         method: "POST",
         body: fd,
+        credentials: "include", // ✅ ESSENCIAL: envia access_token_cookie
       });
 
-      const text = await resp.text();
+      // ✅ token ausente/expirado (flask_jwt_extended costuma usar 401/422)
+      if (resp.status === 401 || resp.status === 422) {
+        const txt = await resp.text().catch(() => "");
+        let msg = "Sessão expirada ou não autenticado. Faça login novamente.";
+        try {
+          const j = JSON.parse(txt);
+          if (j?.msg) msg = j.msg;
+          if (j?.error) msg = j.error;
+        } catch {
+          if (txt) msg = txt;
+        }
+
+        setStatus({
+          type: "danger",
+          message: `HTTP ${resp.status} — ${msg}`,
+        });
+        return;
+      }
+
+      const text = await resp.text().catch(() => "");
 
       if (!resp.ok) {
         setStatus({
@@ -195,7 +220,6 @@ export default function Upload({ onUploadSuccess }) {
               ref={helpDotRef}
               className="upload-help-dot"
               aria-label="Ajuda"
-     
             >
               !
             </span>
@@ -224,15 +248,11 @@ export default function Upload({ onUploadSuccess }) {
                 Não é permitido enter dentro de uma linha, isso quebra a
                 conversão para csv, separe por "&".
               </div>
-              <div>
-                O csv é separado por ";".
-              </div>
+              <div>O csv é separado por ";".</div>
               <div>
                 Todos os campos do csv devem ser obrigatoriamente preenchidos com dados válidos.
               </div>
-              <div>
-                Número de CPF e número da conta devem possuir apenas números.
-              </div>
+              <div>Número de CPF e número da conta devem possuir apenas números.</div>
               <div>
                 Cuidado, observe se a conversão não retirou o zero à esquerda do CPF ou da conta.
               </div>

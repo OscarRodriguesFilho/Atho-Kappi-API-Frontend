@@ -1,3 +1,4 @@
+// src/pages/historico/index.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Check, X, Plus } from "lucide-react";
 import "./index.css";
@@ -6,58 +7,79 @@ import "./index.css";
 import NovaConsulta from "../../components/consulta_individual/nova_consulta";
 
 /* =========================
-   MOCK
+   Config
 ========================= */
+const API_BASE = "http://localhost:5502";
 
-const mockData = [
-  {
-    id: "1",
-    cpf: "153.727.008-74",
-    nome: "CARLOS EDUARDO MENDES",
-    datetime: "2026-02-20T14:32",
-    tipo: "Múltipla",
-    status: "Completo",
-    empresasPesquisadas: 5,
-    pessoasRelacionadas: 12,
-    empresasRelacionadas: 3,
-  },
-  {
-    id: "2",
-    cpf: "098.432.100-55",
-    nome: "ANA PAULA FERREIRA",
-    datetime: "2026-02-20T11:10",
-    tipo: "Crédito",
-    status: "Completo",
-    empresasPesquisadas: 1,
-    pessoasRelacionadas: 4,
-    empresasRelacionadas: 1,
-  },
-  {
-    id: "3",
-    cpf: "421.003.987-12",
-    nome: "ROBERTO ALVES LIMA",
-    datetime: "2026-02-19T16:45",
-    tipo: "Processo",
-    status: "Erro",
-    empresasPesquisadas: 0,
-    pessoasRelacionadas: 0,
-    empresasRelacionadas: 0,
-  },
-];
+/* =========================
+   Utils
+========================= */
+function onlyDigits(s) {
+  return (s || "").toString().replace(/\D+/g, "");
+}
 
-/* ========================= */
+function formatCpfCnpjBR(value) {
+  const d = onlyDigits(value);
 
+  // CPF (11)
+  if (d.length === 11) {
+    return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  }
+
+  // CNPJ (14)
+  if (d.length === 14) {
+    return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+  }
+
+  return value || "";
+}
+
+function statusLabel(status) {
+  const s = (status || "").toString().trim().toUpperCase();
+
+  // backend: COMPLETED, ERROR, etc.
+  if (s === "COMPLETED" || s === "COMPLETE" || s === "OK") return "Completo";
+  if (s === "ERROR" || s === "FAILED" || s === "FAIL") return "Erro";
+
+  // fallback
+  return status || "—";
+}
+
+function isErrorStatus(status) {
+  const s = (status || "").toString().trim().toUpperCase();
+  return s === "ERROR" || s === "FAILED" || s === "FAIL" || s === "ERRO";
+}
+
+/* =========================
+   Date helpers
+========================= */
 function parseDate(datetime) {
-  const [date, time] = datetime.split("T");
-  const [y, m, d] = date.split("-").map(Number);
+  // datetime pode vir sem "T" ou com "Z" etc.
+  if (!datetime) {
+    return {
+      dateKey: "0000-00-00",
+      day: 0,
+      monthName: "",
+      year: 0,
+      dayName: "",
+      time: "",
+    };
+  }
 
-  const jsDate = new Date(y, m - 1, d);
+  const [datePart, timePartRaw] = datetime.split("T");
+  const [y, m, d] = (datePart || "1970-01-01").split("-").map(Number);
+
+  const jsDate = new Date(y, (m || 1) - 1, d || 1);
 
   const dayName = jsDate.toLocaleDateString("pt-BR", { weekday: "long" });
   const monthName = jsDate.toLocaleDateString("pt-BR", { month: "long" });
 
+  // "03:16:03.66+00:00" -> pega só HH:MM (ou HH:MM:SS)
+  const timePart = (timePartRaw || "").replace("Z", "");
+  const time = timePart ? timePart.split(".")[0] : "";
+
   return {
-    dateKey: date,
+    dateKey: datePart,
     day: d,
     monthName,
     year: y,
@@ -79,6 +101,7 @@ function groupByDate(items) {
     map.get(info.dateKey).items.push(c);
   });
 
+  // ordena datas desc
   return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
 }
 
@@ -113,6 +136,27 @@ function Modal({ open, title, onClose, children }) {
   );
 }
 
+/* =========================
+   Normalização do payload
+========================= */
+function normalizeHistoricoItem(it) {
+  // sua API já vem bem perto do mock; aqui só padronizamos e formatamos cpf/cnpj
+  const cpfCnpj = it.cpf ?? it.cpf_cnpj ?? it.document ?? "";
+
+  return {
+    id: it.id || it._id, // chave do react
+    cpf: formatCpfCnpjBR(cpfCnpj),
+    nome: it.nome || "—",
+    datetime: it.datetime || "1970-01-01T00:00:00",
+    tipo: it.tipo || it.consult_type || "—",
+    status: statusLabel(it.status),
+    _statusRaw: it.status, // pra decidir ícone/estilo
+    empresasPesquisadas: Number(it.empresasPesquisadas ?? 0),
+    pessoasRelacionadas: Number(it.pessoasRelacionadas ?? 0),
+    empresasRelacionadas: Number(it.empresasRelacionadas ?? 0),
+  };
+}
+
 /* ========================= */
 
 export default function Historico() {
@@ -122,6 +166,53 @@ export default function Historico() {
 
   // ✅ popup NovaConsulta
   const [novaOpen, setNovaOpen] = useState(false);
+
+  // ✅ dados reais
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [errMsg, setErrMsg] = useState("");
+
+  const LIMIT = 50;
+
+  async function loadHistorico() {
+    setLoading(true);
+    setErrMsg("");
+
+    try {
+      const url = `${API_BASE}/api/historico/reputational?limit=${LIMIT}`;
+
+      const res = await fetch(url, {
+        method: "GET",
+        credentials: "include", // ✅ IMPORTANTE: manda cookies JWT
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status} - ${txt || "erro ao buscar histórico"}`);
+      }
+
+      const data = await res.json();
+
+      const list = Array.isArray(data?.items) ? data.items : [];
+      const normalized = list.map(normalizeHistoricoItem);
+
+      setItems(normalized);
+    } catch (e) {
+      setErrMsg(e?.message || "Erro ao carregar histórico.");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // carrega histórico ao abrir a página
+  useEffect(() => {
+    loadHistorico();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ESC fecha + trava scroll
   useEffect(() => {
@@ -143,20 +234,20 @@ export default function Historico() {
   }, [novaOpen]);
 
   const filtered = useMemo(() => {
-    return mockData.filter((c) => {
+    return items.filter((c) => {
       const cpfMatch =
         !cpfFilter ||
-        c.cpf.replace(/\D/g, "").includes(cpfFilter.replace(/\D/g, ""));
+        onlyDigits(c.cpf).includes(onlyDigits(cpfFilter));
 
       const nomeMatch =
         !nomeFilter ||
-        c.nome.toLowerCase().includes(nomeFilter.toLowerCase());
+        (c.nome || "").toLowerCase().includes((nomeFilter || "").toLowerCase());
 
-      const dataMatch = !dataFilter || c.datetime.startsWith(dataFilter);
+      const dataMatch = !dataFilter || (c.datetime || "").startsWith(dataFilter);
 
       return cpfMatch && nomeMatch && dataMatch;
     });
-  }, [cpfFilter, nomeFilter, dataFilter]);
+  }, [items, cpfFilter, nomeFilter, dataFilter]);
 
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
 
@@ -169,13 +260,17 @@ export default function Historico() {
         onClose={() => setNovaOpen(false)}
       >
         <NovaConsulta
-          backendBase="http://localhost:5502"
+          backendBase={API_BASE}
           onClose={() => setNovaOpen(false)}
-          onDone={() => setNovaOpen(false)}
+          onDone={() => {
+            setNovaOpen(false);
+            // ✅ recarrega histórico depois de criar nova consulta
+            loadHistorico();
+          }}
         />
       </Modal>
 
-      {/* Painel "embrulhando" tudo (dimensionamento que você disse que funciona) */}
+      {/* Painel "embrulhando" tudo */}
       <div className="historico-shell">
         {/* HEADER */}
         <div className="historico-top">
@@ -195,6 +290,37 @@ export default function Historico() {
             Nova Consulta
           </button>
         </div>
+
+        {/* ERRO / LOADING */}
+        {errMsg ? (
+          <div
+            style={{
+              marginTop: 10,
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid rgba(239,68,68,.35)",
+              background: "rgba(239,68,68,.08)",
+              fontSize: 13,
+            }}
+          >
+            <strong>Erro:</strong> {errMsg}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div
+            style={{
+              marginTop: 10,
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid rgba(0,0,0,.08)",
+              background: "rgba(0,0,0,.03)",
+              fontSize: 13,
+            }}
+          >
+            Carregando histórico...
+          </div>
+        ) : null}
 
         {/* FILTERS */}
         <div className="historico-filters">
@@ -217,7 +343,22 @@ export default function Historico() {
 
         {/* TIMELINE */}
         <div className="timeline">
-          {grouped.map(([dateKey, { info, items }]) => (
+          {grouped.length === 0 && !loading ? (
+            <div
+              style={{
+                marginTop: 18,
+                padding: 14,
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,.08)",
+                background: "rgba(0,0,0,.03)",
+                fontSize: 13,
+              }}
+            >
+              Nenhum item encontrado.
+            </div>
+          ) : null}
+
+          {grouped.map(([dateKey, { info, items: dayItems }]) => (
             <div key={dateKey} className="timeline-group">
               <div className="timeline-date">
                 <div className="timeline-day">{info.day}</div>
@@ -234,12 +375,14 @@ export default function Historico() {
               {/* wrapper dos items (linha vive aqui) */}
               <div
                 className={`timeline-items ${
-                  items.length >= 2 ? "has-line" : "no-line"
+                  dayItems.length >= 2 ? "has-line" : "no-line"
                 }`}
               >
-                {items.map((c, idx) => {
-                  const isLast = idx === items.length - 1;
+                {dayItems.map((c, idx) => {
+                  const isLast = idx === dayItems.length - 1;
                   const parsed = parseDate(c.datetime);
+
+                  const erro = isErrorStatus(c._statusRaw) || c.status === "Erro";
 
                   return (
                     <div
@@ -247,18 +390,15 @@ export default function Historico() {
                       className={`timeline-item ${isLast ? "is-last" : ""}`}
                     >
                       <div className="timeline-left">
-                        <span className="timeline-time">{parsed.time}</span>
+                        <span className="timeline-time">
+                          {/* se vier vazio, mostra --:-- */}
+                          {parsed.time ? parsed.time.slice(0, 5) : "--:--"}
+                        </span>
 
                         <div
-                          className={`timeline-status ${
-                            c.status === "Erro" ? "error" : "success"
-                          }`}
+                          className={`timeline-status ${erro ? "error" : "success"}`}
                         >
-                          {c.status === "Erro" ? (
-                            <X size={12} />
-                          ) : (
-                            <Check size={12} />
-                          )}
+                          {erro ? <X size={12} /> : <Check size={12} />}
                         </div>
                       </div>
 

@@ -258,3 +258,8 @@ button:focus { box-shadow: none; }
   justify-content:flex-end;
   gap: 10px;
 }
+/* src/styles.css */
+
+:root {
+  --kuara-bg: #3f5568; /* 🎨 fundo padrão Kuará */
+}

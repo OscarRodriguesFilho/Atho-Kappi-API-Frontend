@@ -1,12 +1,14 @@
+// src/components/kpis/index.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import "./index.css";
 
 export default function Kpis({ refreshKey = 0 }) {
+  // ✅ usa .env (VITE_BACKEND_BASE) e cai pra localhost
+  // IMPORTANTE: não use 127.0.0.1 aqui, senão o cookie não casa com localhost
   const BACKEND_BASE =
-    (import.meta?.env?.VITE_BACKEND_BASE || "").trim() || "http://127.0.0.1:5502";
+    (import.meta?.env?.VITE_BACKEND_BASE || "").trim() || "http://localhost:5502";
 
   const API_KPIS = useMemo(() => `${BACKEND_BASE}/api/kpis`, [BACKEND_BASE]);
-
   const LIMIT = 200;
 
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,27 @@ export default function Kpis({ refreshKey = 0 }) {
       const r = await fetch(url.toString(), {
         method: "GET",
         headers: { Accept: "application/json" },
+        credentials: "include", // ✅ ESSENCIAL: envia access_token_cookie
       });
+
+      // ✅ token ausente/expirado (flask_jwt_extended costuma usar 401/422)
+      if (r.status === 401 || r.status === 422) {
+        const txt = await r.text().catch(() => "");
+        // tenta extrair msg do backend
+        let msg = "Sessão expirada ou não autenticado. Faça login novamente.";
+        try {
+          const j = JSON.parse(txt);
+          if (j?.msg) msg = j.msg;
+          if (j?.error) msg = j.error;
+        } catch {
+          if (txt) msg = txt;
+        }
+
+        setErro(`HTTP ${r.status} — ${msg}`);
+        setStatus({});
+        setResumoCsv({});
+        return;
+      }
 
       if (!r.ok) {
         const txt = await r.text().catch(() => "");
@@ -89,6 +111,11 @@ export default function Kpis({ refreshKey = 0 }) {
             <button className="kpis-btn" onClick={carregarKpis} type="button">
               Tentar novamente
             </button>
+
+            {/* Dica prática */}
+            <div style={{ marginTop: 10, opacity: 0.85, fontSize: 12 }}>
+              Se aparecer <span className="kpis-mono">Missing cookie</span>, faça login novamente.
+            </div>
           </div>
         )}
 
@@ -107,6 +134,17 @@ export default function Kpis({ refreshKey = 0 }) {
                     </span>
                   )}
                 </div>
+
+                {/* (se quiser mostrar também o djson) */}
+                {/* <div className="kpis-status-line">
+                  <span className="kpis-status-label">DJSON:</span>
+                  {badge(!!status?.djson_existe)}
+                  {status?.djson_existe && (
+                    <span className="kpis-status-path kpis-mono">
+                      {safe(status?.caminho_djson, "")}
+                    </span>
+                  )}
+                </div> */}
               </div>
 
               <div className="kpis-grid">
@@ -119,9 +157,11 @@ export default function Kpis({ refreshKey = 0 }) {
                   <div className="kpis-mini-sub">
                     Limite: {LIMIT}
                     <br />
-                    Valor total (processo): {safe(resumoCsv?.valor_total_str, "R$ 0,00")}
+                    Valor total (processo):{" "}
+                    {safe(resumoCsv?.valor_total_str, "R$ 0,00")}
                     <br />
-                    Valor total negociado: {safe(resumoCsv?.valor_negociado_total_str, "R$ 0,00")}
+                    Valor total negociado:{" "}
+                    {safe(resumoCsv?.valor_negociado_total_str, "R$ 0,00")}
                   </div>
                 </div>
 
@@ -130,11 +170,18 @@ export default function Kpis({ refreshKey = 0 }) {
                   <div className="kpis-mini-label">Com análise</div>
                   <div className="kpis-mini-value">{safe(comAnalise?.qtd, 0)}</div>
                   <div className="kpis-mini-sub">
-                    Valor total (processo): {safe(comAnalise?.valor_total_str, "R$ 0,00")}
+                    Valor total (processo):{" "}
+                    {safe(comAnalise?.valor_total_str, "R$ 0,00")}
                     <br />
-                    Valor total negociado: {safe(comAnalise?.valor_negociado_total_str, "R$ 0,00")}
+                    Valor total negociado:{" "}
+                    {safe(comAnalise?.valor_negociado_total_str, "R$ 0,00")}
                     <br />
-
+                    <br />
+                    Aprovado: {safe(aprovado?.qtd, 0)} (
+                    {safe(aprovado?.valor_total_str, "R$ 0,00")})
+                    <br />
+                    Atenção: {safe(atencao?.qtd, 0)} (
+                    {safe(atencao?.valor_total_str, "R$ 0,00")})
                   </div>
                 </div>
 
@@ -143,16 +190,19 @@ export default function Kpis({ refreshKey = 0 }) {
                   <div className="kpis-mini-label">Sem análise</div>
                   <div className="kpis-mini-value">{safe(semAnalise?.qtd, 0)}</div>
                   <div className="kpis-mini-sub">
-                    Valor total (processo): {safe(semAnalise?.valor_total_str, "R$ 0,00")}
+                    Valor total (processo):{" "}
+                    {safe(semAnalise?.valor_total_str, "R$ 0,00")}
                     <br />
-                    Valor total negociado: {safe(semAnalise?.valor_negociado_total_str, "R$ 0,00")}
+                    Valor total negociado:{" "}
+                    {safe(semAnalise?.valor_negociado_total_str, "R$ 0,00")}
                     <br />
                     <br />
-                    Reprovado: {safe(reprovado?.qtd, 0)} ({safe(reprovado?.valor_total_str, "R$ 0,00")})
+                    Reprovado: {safe(reprovado?.qtd, 0)} (
+                    {safe(reprovado?.valor_total_str, "R$ 0,00")})
                   </div>
                 </div>
 
-                {/* 4) ✅ Valor líquido (apenas aprovados) — substitui "Outros status" */}
+                {/* 4) ✅ Valor líquido (apenas aprovados) */}
                 <div className="kpis-mini">
                   <div className="kpis-mini-label">Valor líquido</div>
                   <div className="kpis-mini-value">

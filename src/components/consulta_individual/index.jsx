@@ -226,6 +226,48 @@ function isPlainObject(v) {
 }
 
 /* =========================
+   ✅ Helper: fetch com cookie JWT
+   - ESSENCIAL: credentials: "include"
+========================= */
+async function fetchJsonWithCookies(url, options = {}) {
+  const r = await fetch(url, {
+    ...options,
+    credentials: "include", // ✅ manda cookies JWT
+    headers: {
+      Accept: "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  // tenta ler json mesmo em erro
+  let j = null;
+  try {
+    j = await r.json();
+  } catch {
+    j = null;
+  }
+
+  // caso típico: JWT faltando / expirado
+  if (r.status === 401) {
+    const msg = (j && (j.msg || j.message || j.error)) || "Não autenticado (401). Faça login novamente.";
+    const err = new Error(msg);
+    err.status = 401;
+    err.payload = j;
+    throw err;
+  }
+
+  if (!r.ok) {
+    const msg = (j && (j.msg || j.message || j.error)) || `Erro HTTP ${r.status}`;
+    const err = new Error(msg);
+    err.status = r.status;
+    err.payload = j;
+    throw err;
+  }
+
+  return j;
+}
+
+/* =========================
    Drawer (painel direito)
 ========================= */
 function SideDrawer({ open, title, subtitle, onClose, children }) {
@@ -1091,23 +1133,18 @@ function MultiTabsBar({ sessions, activeId, onSelect, onClose }) {
    Página principal (multi-sessões)
 ========================= */
 export default function ConsultaIndividual({ refreshKey = 0 }) {
-  // input livre pra digitar o próximo doc
   const [doc, setDoc] = useState("");
 
-  // ✅ sessões (cada guia)
-  const [sessions, setSessions] = useState([]); // [{id, doc, loading, error, tab, kappi, socioEnv, creditObj, proScoreObj, regIntegrityObj}]
+  const [sessions, setSessions] = useState([]);
   const [activeId, setActiveId] = useState(null);
 
-  // drawer global
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTitle, setDrawerTitle] = useState("");
   const [drawerSubtitle, setDrawerSubtitle] = useState("");
   const [drawerPayload, setDrawerPayload] = useState(null);
 
-  // modal nova consulta
   const [novaOpen, setNovaOpen] = useState(false);
 
-  // export PDF do dashboard (da guia ativa)
   const dashboardRef = useRef(null);
   const [exporting, setExporting] = useState(false);
 
@@ -1127,7 +1164,6 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
     setDrawerPayload(null);
   }
 
-  // cria uma sessão vazia
   function makeSession(docDigits) {
     return {
       id: `${docDigits}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -1177,7 +1213,6 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
 
       const next = prev.filter((s) => s.id !== id);
 
-      // se fechou a ativa, escolhe uma vizinha
       if (activeId === id) {
         const candidate = next[idx] || next[idx - 1] || null;
         setActiveId(candidate ? candidate.id : null);
@@ -1197,15 +1232,16 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
     setDoc(docDigits);
     closeDrawer();
 
-    // marca loading só na sessão alvo
     setSession(sid, { loading: true, error: null });
 
     try {
       const qs = new URLSearchParams();
       qs.set("doc", docDigits);
 
-      const r = await fetch(`${API_BASE}/api/consultas_multiplas?${qs.toString()}`);
-      const j = await r.json();
+      // ✅ AQUI: fetch com cookie JWT
+      const j = await fetchJsonWithCookies(`${API_BASE}/api/consultas_multiplas?${qs.toString()}`, {
+        method: "GET",
+      });
 
       if (!j.ok) {
         setSession(sid, {
@@ -1226,7 +1262,6 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
       const proScore = extractProScoreFromMultiplas(j);
       const reg = extractRegIntegrityFromMultiplas(j);
 
-      // define tab default se não vier REPUTATIONAL
       let nextTab = "DASHBOARD";
       let nextErr = null;
       let nextKappi = rep || null;
@@ -1250,9 +1285,14 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
         regIntegrityObj: reg || null,
       });
     } catch (e) {
+      const msg =
+        e?.status === 401
+          ? (e?.message || "Sessão expirada. Faça login novamente.")
+          : "Falha de rede/servidor ao consultar.";
+
       setSession(sid, {
         loading: false,
-        error: "Falha de rede/servidor ao consultar.",
+        error: msg,
         kappi: null,
         socioEnv: null,
         creditObj: null,
@@ -1265,7 +1305,7 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
   async function baixarRelatorioDashboardPdf() {
     try {
       if (!active) return;
-      if (!active.kappi) return; // só libera com kappi
+      if (!active.kappi) return;
       if (active.tab !== "DASHBOARD") return;
 
       const el = dashboardRef.current;
@@ -1315,7 +1355,6 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
     }
   }
 
-  // render do corpo baseado na guia ativa
   const renderBody = () => {
     if (!active) return <div className="ck-empty big">Faça uma consulta para abrir uma guia.</div>;
 
@@ -1356,21 +1395,13 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
 
   return (
     <section className="ck-wrap">
-      {/* ✅ GUIAS */}
-      <MultiTabsBar
-        sessions={sessions}
-        activeId={activeId}
-        onSelect={selectSession}
-        onClose={closeSession}
-      />
+      <MultiTabsBar sessions={sessions} activeId={activeId} onSelect={selectSession} onClose={closeSession} />
 
-      {/* HEADER */}
       <div className="ck-header">
         <div className="ck-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <span>Consulta Multiplas (KAPPI + Ambiental + Crédito + Integridade)</span>
 
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-            {/* PDF do dashboard da guia ativa */}
             <button
               className="ck-btn ck-btn--ghost"
               type="button"
@@ -1391,7 +1422,6 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
               {exporting ? "Gerando PDF..." : "Baixar relatório"}
             </button>
 
-            {/* Nova consulta (Mongo) */}
             <button
               className="ck-btn ck-btn--plus"
               type="button"
@@ -1405,9 +1435,7 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
           </div>
         </div>
 
-        <div className="ck-sub">
-          Endpoint: /api/consultas_multiplas • Cada CPF/CNPJ vira uma guia (multi-consultas).
-        </div>
+        <div className="ck-sub">Endpoint: /api/consultas_multiplas • Cada CPF/CNPJ vira uma guia (multi-consultas).</div>
 
         <div className="ck-form">
           <div className="ck-field">
@@ -1430,11 +1458,9 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
           </button>
         </div>
 
-        {/* erro da guia ativa */}
         {active?.error ? <div className="ck-error">{active.error}</div> : null}
       </div>
 
-      {/* NAVBAR INTERNA (por guia) */}
       <KappiNavbar
         current={active?.tab || "DASHBOARD"}
         setCurrent={(next) => {
@@ -1449,10 +1475,7 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
         regObj={active?.regIntegrityObj || null}
       />
 
-      {/* BODY (captura PDF só quando estiver no dashboard) */}
-      <div className="ck-body">
-        {active?.tab === "DASHBOARD" ? <div ref={dashboardRef}>{renderBody()}</div> : renderBody()}
-      </div>
+      <div className="ck-body">{active?.tab === "DASHBOARD" ? <div ref={dashboardRef}>{renderBody()}</div> : renderBody()}</div>
 
       <SideDrawer open={drawerOpen} title={drawerTitle} subtitle={drawerSubtitle} onClose={closeDrawer}>
         <KeyValueTable data={drawerPayload} />
@@ -1465,7 +1488,7 @@ export default function ConsultaIndividual({ refreshKey = 0 }) {
           onDone={({ docDigits }) => {
             setDoc(docDigits);
             setNovaOpen(false);
-            consultar(docDigits); // ✅ cria/seleciona guia e carrega
+            consultar(docDigits);
           }}
         />
       </Modal>

@@ -127,6 +127,7 @@ export default function Cadastro() {
 
       const resp = await fetch(createUrl, {
         method: "POST",
+        credentials: "include", // ✅ ESSENCIAL: manda o cookie JWT
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -140,6 +141,10 @@ export default function Cadastro() {
       }
 
       if (!resp.ok) {
+        // ✅ melhora a mensagem quando o JWT não veio
+        if (resp.status === 401) {
+          throw new Error("Não autorizado (401). Você está logado? (cookie JWT não chegou)");
+        }
         const msg = data?.error || data?.message || text || "Erro ao cadastrar.";
         throw new Error(msg);
       }
@@ -438,7 +443,8 @@ export default function Cadastro() {
 
                     <div className="col-12">
                       <div className="small text-muted">
-                        Observação: flags (kappi/analise/sinqia/email) do CSV começam como <b>false</b> no cadastro novo.
+                        Observação: flags (kappi/analise/sinqia/email) do CSV começam
+                        como <b>false</b> no cadastro novo.
                       </div>
                     </div>
                   </div>

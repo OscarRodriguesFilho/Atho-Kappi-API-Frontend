@@ -91,28 +91,37 @@ function parseISODateInputToRangeMs(isoDate, mode /* "start" | "end" */) {
 }
 
 async function getJson(url) {
-  const resp = await fetch(url, { method: "GET" });
+  const resp = await fetch(url, {
+    method: "GET",
+    credentials: "include", // ✅ manda cookies
+  });
+
   const text = await resp.text();
   let data = null;
   try {
     data = JSON.parse(text);
   } catch {
-    // ✅ se não vier JSON (ex: XML download / texto OK), ainda funciona
     data = { raw: text };
   }
+
   if (!resp.ok)
     throw new Error(
-      data && (data.error || data.message) ? (data.error || data.message) : text
+      data && (data.error || data.message || data.msg)
+        ? (data.error || data.message || data.msg)
+        : text
     );
+
   return data;
 }
 
 async function postJson(url, payload) {
   const resp = await fetch(url, {
     method: "POST",
+    credentials: "include", // ✅ manda cookies
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload || {}),
   });
+
   const text = await resp.text();
   let data = null;
   try {
@@ -120,13 +129,16 @@ async function postJson(url, payload) {
   } catch {
     data = { raw: text };
   }
+
   if (!resp.ok)
     throw new Error(
-      data && (data.error || data.message) ? (data.error || data.message) : text
+      data && (data.error || data.message || data.msg)
+        ? (data.error || data.message || data.msg)
+        : text
     );
+
   return data;
 }
-
 /* =========================
    “HTML do Flask” em React:
    - Cards/Container/Classes

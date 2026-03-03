@@ -51,3 +51,64 @@
     grid-template-columns: 1fr;
   }
 }
+/* =========================
+   LOADING SCREEN ANIMATION
+========================= */
+
+.loading-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--kuara-bg);
+}
+
+.loading-content {
+  text-align: center;
+  animation: fadeInUp 0.7s ease;
+}
+
+.loading-logo {
+  width: 180px;
+  max-width: 70vw;
+  margin-bottom: 18px;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.25));
+
+  animation: logoPulse 2.4s ease-in-out infinite;
+}
+
+.loading-text {
+  color: white;
+  opacity: 0.85;
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+}
+
+/* ===== animações ===== */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes logoPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+}

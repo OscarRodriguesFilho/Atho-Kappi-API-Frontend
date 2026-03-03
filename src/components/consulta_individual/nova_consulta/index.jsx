@@ -75,8 +75,9 @@ export default function NovaConsulta({ backendBase = "http://localhost:5502", on
 
     const r = await fetch(url, {
       method: "POST",
+      credentials: "include", // ✅ ESSENCIAL (manda cookie JWT)
       headers: {
-        accept: "application/json",
+        Accept: "application/json",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -93,6 +94,8 @@ export default function NovaConsulta({ backendBase = "http://localhost:5502", on
 
     if (!r.ok || !j?.ok) {
       const msg =
+        j?.msg ||
+        j?.message ||
         j?.error ||
         j?.erro ||
         (typeof j === "string" ? j : null) ||
@@ -130,7 +133,6 @@ export default function NovaConsulta({ backendBase = "http://localhost:5502", on
       addLog(`Pesquisas: ${types.join(", ")}`);
       addLog("Disparando consultas em paralelo...");
 
-      // dispara tudo ao mesmo tempo
       const tasks = types.map((t) => {
         addLog(`▶ (start) ${t}`);
         const startedAt = Date.now();

@@ -67,11 +67,9 @@ function IconSearch(props) {
   );
 }
 
-/* 🔥 Ícone de Histórico (relógio com seta) */
 function IconHistory(props) {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...props}>
-      {/* seta de retorno */}
       <path
         d="M3 12a9 9 0 1 0 3-6.7"
         fill="none"
@@ -87,7 +85,6 @@ function IconHistory(props) {
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      {/* ponteiros do relógio */}
       <path
         d="M12 7v6l4 2"
         fill="none"
@@ -100,11 +97,44 @@ function IconHistory(props) {
   );
 }
 
+/* 🔥 Ícone Logout */
+function IconLogout(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" {...props}>
+      <path
+        d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M16 17l5-5-5-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M21 12H9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /* =========================
    Sidebar
 ========================= */
 
-export default function Sidebar({ activeKey = "home", onNavigate }) {
+export default function Sidebar({
+  activeKey = "home",
+  onNavigate,
+  onLogout, // 🔥 NOVO
+}) {
   const items = useMemo(
     () => [
       { key: "home", label: "Home", icon: <IconHome /> },
@@ -121,6 +151,7 @@ export default function Sidebar({ activeKey = "home", onNavigate }) {
 
   return (
     <aside className="fdock">
+      {/* itens normais */}
       {items.map((it) => {
         const active = it.key === activeKey;
 
@@ -136,6 +167,18 @@ export default function Sidebar({ activeKey = "home", onNavigate }) {
           </button>
         );
       })}
+
+      {/* 🔥 LOGOUT */}
+      <button
+        type="button"
+        className="fdock-item fdock-logout"
+        onClick={onLogout}
+      >
+        <span className="fdock-ico">
+          <IconLogout />
+        </span>
+        <span className="fdock-label">Sair</span>
+      </button>
     </aside>
   );
 }

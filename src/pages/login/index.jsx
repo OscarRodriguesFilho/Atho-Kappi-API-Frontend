@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import "./index.css";
 
-export default function Login() {
+const API_BASE = "http://localhost:5502";
+
+export default function Login({ onSuccess }) {
   const [form, setForm] = useState({
     email: "",
     senha: "",
@@ -25,15 +27,28 @@ export default function Login() {
         throw new Error("Preencha e-mail e senha.");
       }
 
-      // 🔑 AQUI você liga no backend depois
-      // ex:
-      // await fetch("/api/login", { ... })
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // ✅ cookie JWT
+        body: JSON.stringify({
+          email: form.email,
+          senha: form.senha,
+        }),
+      });
 
-      await new Promise((r) => setTimeout(r, 900)); // simulação
+      const data = await res.json().catch(() => ({}));
 
-      alert("Login realizado com sucesso!");
+      if (!res.ok) {
+        throw new Error(data?.error || "Erro ao fazer login.");
+      }
+
+      // ✅ sucesso: muda para Home
+      if (typeof onSuccess === "function") {
+        onSuccess();
+      }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Erro desconhecido.");
     } finally {
       setLoading(false);
     }
@@ -42,7 +57,6 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-card">
-        {/* Logo */}
         <div className="login-logo">
           <span className="logo-main">kuará</span>
           <span className="logo-sub">capital</span>
@@ -62,6 +76,7 @@ export default function Login() {
               value={form.email}
               onChange={onChange}
               placeholder="seu@email.com"
+              autoComplete="username"
             />
           </div>
 
@@ -73,16 +88,13 @@ export default function Login() {
               value={form.senha}
               onChange={onChange}
               placeholder="••••••••"
+              autoComplete="current-password"
             />
           </div>
 
           {error && <div className="login-error">{error}</div>}
 
-          <button
-            type="submit"
-            className="login-btn"
-            disabled={loading}
-          >
+          <button type="submit" className="login-btn" disabled={loading}>
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
