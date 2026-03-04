@@ -14,7 +14,7 @@ import Regras from "./components/regras";
 
 import Sidebar from "./components/sidebar";
 
-import ConsultaIndividualPage from "./pages/consulta_individual";
+import ConsultaIndividualPage from "./pages/consulta_individual/index";
 import HistoricoPage from "./pages/historico";
 import LoginPage from "./pages/login";
 
@@ -28,9 +28,21 @@ export default function App() {
 
   const [pageKey, setPageKey] = useState("home");
 
+  // ✅ doc/cpf que o histórico manda pra consulta
+  const [consultaDoc, setConsultaDoc] = useState("");
+
   const triggerRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
   }, []);
+
+  // ✅ logs (pode manter — não aparece na tela)
+  useEffect(() => {
+    console.log("[APP] pageKey =", pageKey);
+  }, [pageKey]);
+
+  useEffect(() => {
+    console.log("[APP] consultaDoc =", consultaDoc);
+  }, [consultaDoc]);
 
   // =========================
   // Checar sessão ao abrir
@@ -48,7 +60,6 @@ export default function App() {
         });
 
         if (!alive) return;
-
         setIsAuthed(res.ok);
       } catch {
         if (!alive) return;
@@ -80,6 +91,7 @@ export default function App() {
     } finally {
       setIsAuthed(false);
       setPageKey("home");
+      setConsultaDoc("");
     }
   }
 
@@ -123,7 +135,15 @@ export default function App() {
         return (
           <div className="page">
             <div className="page__container">
-              <ConsultaIndividualPage refreshKey={refreshKey} />
+              {/*
+                ✅ FORÇA remount quando o CPF muda
+                - evita ficar mostrando prop velha
+              */}
+              <ConsultaIndividualPage
+                key={consultaDoc || "none"}
+                refreshKey={refreshKey}
+                initialDoc={consultaDoc}
+              />
             </div>
           </div>
         );
@@ -132,7 +152,20 @@ export default function App() {
         return (
           <div className="page">
             <div className="page__container">
-              <HistoricoPage />
+              <HistoricoPage
+                onOpenDoc={(docDigits) => {
+                  console.log("[APP] onOpenDoc recebeu:", docDigits);
+
+                  // ✅ garante string (evita undefined / null)
+                  const next = (docDigits || "").toString();
+
+                  // ✅ seta doc e navega
+                  setConsultaDoc(next);
+                  setPageKey("consulta");
+
+                  console.log("[APP] setConsultaDoc =", next, "-> indo pra pagina consulta");
+                }}
+              />
             </div>
           </div>
         );
@@ -144,7 +177,7 @@ export default function App() {
   }
 
   // =========================
-  // LOADING SCREEN (AGORA COM LOGO)
+  // LOADING SCREEN
   // =========================
   if (authLoading) {
     return (
@@ -155,8 +188,7 @@ export default function App() {
           alignItems: "center",
           justifyContent: "center",
           background: "var(--kuara-bg)",
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
         }}
       >
         <div style={{ textAlign: "center" }}>
@@ -205,11 +237,7 @@ export default function App() {
   // =========================
   return (
     <>
-      <Sidebar
-        activeKey={pageKey}
-        onNavigate={setPageKey}
-        onLogout={handleLogout}
-      />
+      <Sidebar activeKey={pageKey} onNavigate={setPageKey} onLogout={handleLogout} />
 
       <Header />
 
